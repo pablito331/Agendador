@@ -1,6 +1,7 @@
 customtkinter>=5.2.0
 openpyxl>=3.1.0
 pandas>=2.0.0
+pyinstaller>=6.0.0
 
 # Recursos opcionais: funcionam se estiverem instalados, mas o app continua funcionando sem eles.
 # pynput>=1.7.0

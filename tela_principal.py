@@ -226,4 +226,102 @@ class TelaPrincipal:
             self.janela.destroy()
         except:
             pass
+    
+    def mostrar_notificacao_atualizacao(self, info_atualizacao: dict, download_callback):
+        """
+        Mostra um banner notificando sobre atualização disponível
+        
+        Args:
+            info_atualizacao: Dict com 'version', 'url', 'body', 'asset_url'
+            download_callback: Função a chamar quando clicar em "Baixar"
+        """
+        # Criar frame para notificação
+        notif_frame = ctk.CTkFrame(
+            self.frame,
+            fg_color="#1a3a52",
+            border_color="#4a90e2",
+            border_width=2,
+            corner_radius=8
+        )
+        notif_frame.pack(fill="x", pady=(0, 15))
+        
+        # Conteúdo
+        conteudo = ctk.CTkFrame(notif_frame, fg_color="transparent")
+        conteudo.pack(fill="both", expand=True, padx=12, pady=10)
+        
+        # Título
+        titulo = f"✨ Nova versão disponível: v{info_atualizacao['version']}"
+        ctk.CTkLabel(
+            conteudo,
+            text=titulo,
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color="#4a90e2"
+        ).pack(anchor="w", pady=(0, 5))
+        
+        # Descrição
+        desc = info_atualizacao.get('body', 'Novas melhorias e correções').strip()
+        if len(desc) > 150:
+            desc = desc[:150] + "..."
+        
+        if desc:
+            ctk.CTkLabel(
+                conteudo,
+                text=desc,
+                font=ctk.CTkFont(size=10),
+                text_color="#cccccc",
+                wraplength=300,
+                justify="left"
+            ).pack(anchor="w", pady=(0, 8))
+        
+        # Botões
+        botoes_frame = ctk.CTkFrame(conteudo, fg_color="transparent")
+        botoes_frame.pack(fill="x", pady=(5, 0))
+        
+        ctk.CTkButton(
+            botoes_frame,
+            text="📥 Baixar & Instalar",
+            command=lambda: self._download_e_instalar(download_callback, notif_frame),
+            fg_color="#4a90e2",
+            hover_color="#357abd",
+            text_color="white",
+            height=32,
+            font=ctk.CTkFont(size=11, weight="bold")
+        ).pack(side="left", padx=(0, 5))
+        
+        ctk.CTkButton(
+            botoes_frame,
+            text="🔗 Ver Release",
+            command=lambda: self._abrir_url(info_atualizacao['url']),
+            fg_color="#555555",
+            hover_color="#666666",
+            text_color="white",
+            height=32
+        ).pack(side="left", padx=(0, 5))
+        
+        ctk.CTkButton(
+            botoes_frame,
+            text="✕",
+            command=lambda: notif_frame.destroy(),
+            fg_color="#333333",
+            hover_color="#444444",
+            text_color="#999999",
+            width=32,
+            height=32
+        ).pack(side="left")
+        
+        # Mover para o topo (repackar)
+        notif_frame.tkraise()
+    
+    def _download_e_instalar(self, callback, frame_notif):
+        """Inicia download e instalação"""
+        frame_notif.destroy()
+        callback()
+    
+    def _abrir_url(self, url: str):
+        """Abre URL no navegador"""
+        import webbrowser
+        try:
+            webbrowser.open(url)
+        except:
+            pass
 

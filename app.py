@@ -64,20 +64,15 @@ class ESFApp:
         self._inicializar()
 
     def _inicializar(self):
-        self._verificar_atualizacao()
         self._criar_janela_root()
         self._criar_janela_principal()
+        self._verificar_atualizacao_thread()  # Verificar em background
         self._iniciar_tray()
         self._iniciar_hotkey()
         self._iniciar_loop()
 
-    def _verificar_atualizacao(self):
-        try:
-            info = self.updater.check_for_update()
-            if info:
-                print(f"Atualização disponível: {info['version']} - {info['url']}")
-        except Exception:
-            pass
+    def _verificar_atualizacao_thread(self):
+        \"\"\"Verifica atualização em thread separada (background)\"\"\"\n        def check():\n            try:\n                info = self.updater.check_for_update()\n                if info and self.tela_principal:\n                    # Mostrar notificação na thread principal\n                    self._root.after(0, lambda: self._mostrar_notificacao_atualizacao(info))\n            except Exception:\n                pass\n        \n        thread = threading.Thread(target=check, daemon=True)\n        thread.start()\n    \n    def _mostrar_notificacao_atualizacao(self, info: dict):\n        \"\"\"Mostra notificação de atualização na tela principal\"\"\"\n        if self.tela_principal:\n            self.tela_principal.mostrar_notificacao_atualizacao(\n                info,\n                download_callback=self._iniciar_download_atualizacao\n            )\n    \n    def _iniciar_download_atualizacao(self):\n        \"\"\"Inicia download e instalação da atualização\"\"\"\n        def download_thread():\n            self.updater.download_and_install(\n                progress_callback=self._atualizar_progresso_download\n            )\n        \n        thread = threading.Thread(target=download_thread, daemon=True)\n        thread.start()\n    \n    def _atualizar_progresso_download(self, mensagem: str, percentual: int):\n        \"\"\"Callback de progresso do download\"\"\"\n        print(f\"[Atualização] {mensagem} ({percentual}%)\")
 
     def _criar_janela_root(self):
         """Cria janela root CTk oculta (obrigatória para que CTkToplevel funcione)"""

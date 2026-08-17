@@ -3,6 +3,8 @@ import os
 import re
 import sys
 import urllib.request
+import subprocess
+import shutil
 
 
 class GitHubUpdater:
@@ -80,3 +82,64 @@ class GitHubUpdater:
             return destino
         except Exception:
             return None
+
+    def download_and_install(self, progress_callback=None):
+        """
+        Baixa e instala a atualização automaticamente.
+        
+        Args:
+            progress_callback: Função chamada com (mensagem, percentual) durante download
+        
+        Returns:
+            bool: True se sucesso, False se erro
+        """
+        info = self.check_for_update()
+        if not info or not info.get("asset_url"):
+            return False
+
+        try:
+            # Definir diretório de downloads
+            if hasattr(sys, 'frozen'):
+                # App compilado com PyInstaller
+                app_dir = os.path.dirname(sys.executable)
+            else:
+                app_dir = os.path.dirname(os.path.abspath(__file__))
+            
+            temp_dir = os.path.join(app_dir, ".updates")
+            os.makedirs(temp_dir, exist_ok=True)
+            
+            destino = os.path.join(temp_dir, "AgendadorESF_new.exe")
+            
+            # Chamar progress callback
+            if progress_callback:
+                progress_callback("Conectando ao servidor...", 0)
+            
+            # Download com progresso
+            def download_hook(bloco, tamanho_bloco, tamanho_total):
+                if tamanho_total > 0 and progress_callback:
+                    percentual = (bloco * tamanho_bloco) * 100 // tamanho_total
+                    percentual = min(100, percentual)
+                    progress_callback(f"Baixando ({percentual}%)...", percentual)
+            
+            urllib.request.urlretrieve(info["asset_url"], destino, reporthook=download_hook)
+            
+            if progress_callback:
+                progress_callback("Instalando atualização...", 100)
+            
+            # Executar novo instalador
+            if sys.platform == "win32":
+                # Windows: executar e sair
+                subprocess.Popen([destino])
+                # Aguardar um pouco antes de sair
+                import time
+                time.sleep(1)
+                sys.exit(0)
+            else:
+                # Outros SOs: apenas executar
+                subprocess.Popen([destino])
+            
+            return True
+            
+        except Exception as e:
+            print(f"Erro ao atualizar: {e}")
+            return False
