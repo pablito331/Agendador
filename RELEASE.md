@@ -8,13 +8,47 @@ O **AgendadorESF** possui um sistema completo de atualização automática que:
 2. ✅ Notifica o usuário com uma interface visual amigável
 3. ✅ Permite baixar e instalar atualizações com um clique
 4. ✅ Mantém histórico de versões no GitHub
+5. ✅ Fornece instalador online (~5-10MB) que baixa do GitHub
 
-## Como Funciona
+## 📥 Tipos de Download Disponíveis
+
+### 1. Instalador Online (Recomendado)
+- **Arquivo**: `AgendadorESF-Setup.exe`
+- **Tamanho**: ~5-10MB
+- **Como funciona**:
+  - Instalador pequeno
+  - Baixa a app do GitHub durante instalação
+  - Cria atalhos no Menu Iniciar e Desktop
+  - Registra no Adicionar/Remover Programas
+  - Desinstalar limpo e seguro
+- **Vantagens**:
+  - Muito menor que o executável
+  - Ideal para distribuição (email, WhatsApp, etc)
+  - Experiência de instalação profissional
+  - Sempre baixa a versão mais recente
+
+### 2. Executável Portátil
+- **Arquivo**: `AgendadorESF.exe`
+- **Tamanho**: ~60MB
+- **Como funciona**:
+  - Executável standalone completo
+  - Inclui Python e todas as dependências
+  - Não requer instalação
+  - Pode rodar de qualquer lugar (USB, rede, etc)
+- **Vantagens**:
+  - Sem instalação
+  - Portável
+  - Funciona offline
+
+## Como Funciona a Atualização
 
 ### Para Usuários
 
-1. **Verificação Automática**: O aplicativo verifica a cada 30 segundos se há atualização disponível
-2. **Notificação Visual**: Se houver atualização, aparece um banner na tela principal
+1. **Verificação Automática**: O aplicativo verifica automaticamente se há atualização disponível
+2. **Notificação Visual**: Se houver atualização, aparece um banner na tela principal com:
+   - Versão disponível
+   - Descrição das mudanças
+   - Botões de ação (Baixar, Ver Release, Fechar)
 3. **Download e Instalação**: Clique em "Baixar & Instalar" para:
    - Baixar o novo executável
    - Fechar a aplicação atual
@@ -39,15 +73,38 @@ O **AgendadorESF** possui um sistema completo de atualização automática que:
 
 3. **O GitHub Actions vai automaticamente**:
    - ✅ Compilar o executável com PyInstaller
+   - ✅ Compilar o instalador NSIS
    - ✅ Criar uma release no GitHub
-   - ✅ Fazer upload do `.exe`
+   - ✅ Fazer upload de ambos os arquivos
    - ✅ Usuarios verão notificação de atualização
 
 #### Manual (Se precisar)
 
 Se o GitHub Actions não funcionar, faça manualmente:
 
+**Compilar Executável PyInstaller**:
 ```bash
+pyinstaller AgendadorESF.spec
+# Resultado: dist/AgendadorESF_v1.0.1.exe (~60MB)
+```
+
+**Compilar Instalador NSIS**:
+```bash
+# 1. Instalar NSIS: https://nsis.sourceforge.io/Download
+# 2. Executar:
+python compile_nsis_installer.py
+# Resultado: AgendadorESF-Setup.exe (~5-10MB)
+```
+
+**Criar Release Manual no GitHub**:
+1. Vá para [Releases](https://github.com/pablito331/Agendador/releases)
+2. Clique em "Create a new release"
+3. Tag: `v1.0.1`
+4. Título: `Release v1.0.1`
+5. Upload dos arquivos:
+   - `dist/AgendadorESF_v1.0.1.exe`
+   - `AgendadorESF-Setup.exe`
+6. Publish release
 # 1. Instalar dependências
 pip install -r requirements.txt
 

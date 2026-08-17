@@ -9,6 +9,7 @@ on:
       - '*.py'
       - 'AgendadorESF.spec'
       - '.github/workflows/build.yml'
+      - 'AgendadorESF-Installer.nsi'
 
 jobs:
   build:
@@ -22,15 +23,23 @@ jobs:
       with:
         python-version: '3.11'
     
-    - name: Install dependencies
+    - name: Install NSIS
+      run: |
+        choco install nsis -y
+    
+    - name: Install Python dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install pyinstaller
     
-    - name: Build executable
+    - name: Build executable with PyInstaller
       run: |
         pyinstaller AgendadorESF.spec
+    
+    - name: Build NSIS Installer
+      run: |
+        python compile_nsis_installer.py
     
     - name: Get version
       id: version
@@ -38,36 +47,50 @@ jobs:
         $version = (python -c "import re; content=open('app.py').read(); match=re.search(r'APP_VERSION = \"([^\"]+)\"', content); print(match.group(1))")
         echo "version=$version" | Out-String | Add-Content -Path $env:GITHUB_OUTPUT
     
+    
     - name: Create Release
       if: success()
-      uses: actions/create-release@v1
+      uses: softprops/action-gh-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         tag_name: v${{ steps.version.outputs.version }}
-        release_name: Release v${{ steps.version.outputs.version }}
+        name: Release v${{ steps.version.outputs.version }}
         body: |
           ## AgendadorESF v${{ steps.version.outputs.version }}
           
-          Baixe o arquivo `AgendadorESF.exe` abaixo para instalar a atualização.
+          ### 📥 Download (Escolha uma opção)
           
-          ### Instalação
-          1. Baixe o arquivo `.exe`
-          2. Execute-o para instalar/atualizar
-          3. Reinicie o aplicativo
+          **Opção 1 - Instalador Online (Recomendado)**
+          - Arquivo: `AgendadorESF-Setup.exe`
+          - Tamanho: ~5-10MB
+          - Baixa a app do GitHub durante instalação
+          - Cria atalhos automaticamente
           
-          ### Mudanças
-          - Consulte o histórico do git para detalhes das mudanças
+          **Opção 2 - Executável Portátil**
+          - Arquivo: `AgendadorESF.exe`
+          - Tamanho: ~60MB
+          - Executável standalone
+          - Pode rodar de qualquer lugar
+          
+          ### 🚀 Instalação
+          1. Baixe um dos arquivos acima
+          2. Execute o arquivo
+          3. Siga as instruções na tela
+          4. O app abrirá automaticamente ao final
+          
+          ### ℹ️ Informações
+          - Versão: v${{ steps.version.outputs.version }}
+          - Data: ${{ github.event.head_commit.timestamp }}
+          - Python: 3.11
+          
+          ### 🔄 Atualização
+          Se você já tem o app instalado, ele notificará automaticamente sobre novas versões.
+          
+          ### 📝 Mudanças
+          Consulte o histórico do git para detalhes das alterações.
         draft: false
         prerelease: false
-    
-    - name: Upload Release Asset
-      if: success()
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./dist/AgendadorESF_v${{ steps.version.outputs.version }}.exe
-        asset_name: AgendadorESF.exe
-        asset_content_type: application/octet-stream
+        files: |
+          ./dist/AgendadorESF_v${{ steps.version.outputs.version }}.exe
+          ./AgendadorESF-Setup.exe
