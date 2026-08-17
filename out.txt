@@ -1,0 +1,194 @@
+Atalho Ctrl+Shift+A configurado!
+Exception in Tkinter callback
+Traceback (most recent call last):
+  File "C:\Users\pablo\AppData\Local\Python\pythoncore-3.14-64\Lib\tkinter\__init__.py", line 2093, in __call__
+    return self.func(*args)
+           ~~~~~~~~~^^^^^^^
+  File "C:\Users\pablo\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\customtkinter\windows\widgets\core_widget_classes\ctk_base_class.py", line 188, in _update_dimensions_event
+    self._draw(no_color_updates=True)  # faster drawing without color changes
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\pablo\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\customtkinter\windows\widgets\ctk_label.py", line 179, in _draw
+    requires_recoloring = self._draw_engine.draw_rounded_rect_with_border(self._apply_widget_scaling(self._current_width),
+                                                                          self._apply_widget_scaling(self._current_height),
+                                                                          self._apply_widget_scaling(self._corner_radius),
+                                                                          self._apply_widget_scaling(self._border_width))
+  File "C:\Users\pablo\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\customtkinter\windows\widgets\core_rendering\draw_engine.py", line 129, in draw_rounded_rect_with_border
+    return self.__draw_rounded_rect_with_border_font_shapes(width, height, corner_radius, border_width, inner_corner_radius, ())
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\pablo\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\customtkinter\windows\widgets\core_rendering\draw_engine.py", line 249, in __draw_rounded_rect_with_border_font_shapes
+    self._canvas.delete("border_parts")
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^
+  File "C:\Users\pablo\AppData\Local\Python\pythoncore-3.14-64\Lib\tkinter\__init__.py", line 3054, in delete
+    self.tk.call((self._w, 'delete') + args)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_tkinter.TclError: invalid command name ".!ctktoplevel.!ctkframe.!ctkframe.!ctklabel.!ctkcanvas"
+Exception in Tkinter callback
+Traceback (most recent call last):
+  File "C:\Users\pablo\AppData\Local\Python\pythoncore-3.14-64\Lib\tkinter\__init__.py", line 2093, in __call__
+    return self.func(*args)
+           ~~~~~~~~~^^^^^^^
+  File "C:\Users\pablo\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\customtkinter\windows\widgets\core_widget_classes\ctk_base_class.py", line 188, in _update_dimensions_event
+    self._draw(no_color_updates=True)  # faster drawing without color changes
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\pablo\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\customtkinter\windows\widgets\ctk_label.py", line 179, in _draw
+    requires_recoloring = self._draw_engine.draw_rounded_rect_with_border(self._apply_widget_scaling(self._current_width),
+                                                                          self._apply_widget_scaling(self._current_height),
+                                                                          self._apply_widget_scaling(self._corner_radius),
+                                                                          self._apply_widget_scaling(self._border_width))
+  File "C:\Users\pablo\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\customtkinter\windows\widgets\core_rendering\draw_engine.py", line 129, in draw_rounded_rect_with_border
+    return self.__draw_rounded_rect_with_border_font_shapes(width, height, corner_radius, border_width, inner_corner_radius, ())
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\pablo\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\customtkinter\windows\widgets\core_rendering\draw_engine.py", line 249, in __draw_rounded_rect_with_border_font_shapes
+    self._canvas.delete("border_parts")
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^
+  File "C:\Users\pablo\AppData\Local\Python\pythoncore-3.14-64\Lib\tkinter\__init__.py", line 3054, in delete
+    self.tk.call((self._w, 'delete') + args)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_tkinter.TclError: invalid command name ".!ctktoplevel.!ctkframe.!ctklabel.!ctkcanvas"
+Exception in Tkinter callback
+Traceback (most recent call last):
+  File "C:\Users\pablo\AppData\Local\Python\pythoncore-3.14-64\Lib\tkinter\__init__.py", line 2093, in __call__
+    return self.func(*args)
+           ~~~~~~~~~^^^^^^^
+  File "C:\Users\pablo\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\customtkinter\windows\widgets\core_widget_classes\ctk_base_class.py", line 188, in _update_dimensions_event
+    self._draw(no_color_updates=True)  # faster drawing without color changes
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\pablo\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\customtkinter\windows\widgets\ctk_entry.py", line 159, in _draw
+    requires_recoloring = self._draw_engine.draw_rounded_rect_with_border(self._apply_widget_scaling(self._current_width),
+                                                                          self._apply_widget_scaling(self._current_height),
+                                                                          self._apply_widget_scaling(self._corner_radius),
+                                                                          self._apply_widget_scaling(self._border_width))
+  File "C:\Users\pablo\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\customtkinter\windows\widgets\core_rendering\draw_engine.py", line 129, in draw_rounded_rect_with_border
+    return self.__draw_rounded_rect_with_border_font_shapes(width, height, corner_radius, border_width, inner_corner_radius, ())
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\pablo\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\customtkinter\windows\widgets\core_rendering\draw_engine.py", line 195, in __draw_rounded_rect_with_border_font_shapes
+    if not self._canvas.find_withtag("border_oval_1_a") and "border_oval_1" not in exclude_parts:
+           ~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\pablo\AppData\Local\Python\pythoncore-3.14-64\Lib\tkinter\__init__.py", line 3097, in find_withtag
+    return self.find('withtag', tagOrId)
+           ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\pablo\AppData\Local\Python\pythoncore-3.14-64\Lib\tkinter\__init__.py", line 3064, in find
+    self.tk.call((self._w, 'find') + args)) or ()
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+_tkinter.TclError: invalid command name ".!ctktoplevel.!ctkframe.!ctkframe2.!ctkentry.!ctkcanvas"
+Exception in Tkinter callback
+Traceback (most recent call last):
+  File "C:\Users\pablo\AppData\Local\Python\pythoncore-3.14-64\Lib\tkinter\__init__.py", line 2093, in __call__
+    return self.func(*args)
+           ~~~~~~~~~^^^^^^^
+  File "C:\Users\pablo\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\customtkinter\windows\widgets\core_widget_classes\ctk_base_class.py", line 188, in _update_dimensions_event
+    self._draw(no_color_updates=True)  # faster drawing without color changes
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\pablo\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\customtkinter\windows\widgets\ctk_button.py", line 195, in _draw
+    self._canvas.delete("background_parts")
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\pablo\AppData\Local\Python\pythoncore-3.14-64\Lib\tkinter\__init__.py", line 3054, in delete
+    self.tk.call((self._w, 'delete') + args)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_tkinter.TclError: invalid command name ".!ctktoplevel.!ctkframe.!ctkframe4.!canvas.!ctkscrollableframe.!ctkbutton.!ctkcanvas"
+Exception in Tkinter callback
+Traceback (most recent call last):
+  File "C:\Users\pablo\AppData\Local\Python\pythoncore-3.14-64\Lib\tkinter\__init__.py", line 2093, in __call__
+    return self.func(*args)
+           ~~~~~~~~~^^^^^^^
+  File "C:\Users\pablo\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\customtkinter\windows\widgets\core_widget_classes\ctk_base_class.py", line 188, in _update_dimensions_event
+    self._draw(no_color_updates=True)  # faster drawing without color changes
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\pablo\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\customtkinter\windows\widgets\ctk_button.py", line 195, in _draw
+    self._canvas.delete("background_parts")
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\pablo\AppData\Local\Python\pythoncore-3.14-64\Lib\tkinter\__init__.py", line 3054, in delete
+    self.tk.call((self._w, 'delete') + args)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_tkinter.TclError: invalid command name ".!ctktoplevel.!ctkframe.!ctkframe4.!canvas.!ctkscrollableframe.!ctkbutton2.!ctkcanvas"
+Exception in Tkinter callback
+Traceback (most recent call last):
+  File "C:\Users\pablo\AppData\Local\Python\pythoncore-3.14-64\Lib\tkinter\__init__.py", line 2093, in __call__
+    return self.func(*args)
+           ~~~~~~~~~^^^^^^^
+  File "C:\Users\pablo\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\customtkinter\windows\widgets\core_widget_classes\ctk_base_class.py", line 188, in _update_dimensions_event
+    self._draw(no_color_updates=True)  # faster drawing without color changes
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\pablo\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\customtkinter\windows\widgets\ctk_button.py", line 195, in _draw
+    self._canvas.delete("background_parts")
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\pablo\AppData\Local\Python\pythoncore-3.14-64\Lib\tkinter\__init__.py", line 3054, in delete
+    self.tk.call((self._w, 'delete') + args)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_tkinter.TclError: invalid command name ".!ctktoplevel.!ctkframe.!ctkframe4.!canvas.!ctkscrollableframe.!ctkbutton3.!ctkcanvas"
+Exception in Tkinter callback
+Traceback (most recent call last):
+  File "C:\Users\pablo\AppData\Local\Python\pythoncore-3.14-64\Lib\tkinter\__init__.py", line 2093, in __call__
+    return self.func(*args)
+           ~~~~~~~~~^^^^^^^
+  File "C:\Users\pablo\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\customtkinter\windows\widgets\core_widget_classes\ctk_base_class.py", line 188, in _update_dimensions_event
+    self._draw(no_color_updates=True)  # faster drawing without color changes
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\pablo\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\customtkinter\windows\widgets\ctk_button.py", line 195, in _draw
+    self._canvas.delete("background_parts")
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\pablo\AppData\Local\Python\pythoncore-3.14-64\Lib\tkinter\__init__.py", line 3054, in delete
+    self.tk.call((self._w, 'delete') + args)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_tkinter.TclError: invalid command name ".!ctktoplevel.!ctkframe.!ctkframe4.!canvas.!ctkscrollableframe.!ctkbutton4.!ctkcanvas"
+Exception in Tkinter callback
+Traceback (most recent call last):
+  File "C:\Users\pablo\AppData\Local\Python\pythoncore-3.14-64\Lib\tkinter\__init__.py", line 2093, in __call__
+    return self.func(*args)
+           ~~~~~~~~~^^^^^^^
+  File "C:\Users\pablo\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\customtkinter\windows\widgets\core_widget_classes\ctk_base_class.py", line 188, in _update_dimensions_event
+    self._draw(no_color_updates=True)  # faster drawing without color changes
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\pablo\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\customtkinter\windows\widgets\ctk_button.py", line 195, in _draw
+    self._canvas.delete("background_parts")
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\pablo\AppData\Local\Python\pythoncore-3.14-64\Lib\tkinter\__init__.py", line 3054, in delete
+    self.tk.call((self._w, 'delete') + args)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_tkinter.TclError: invalid command name ".!ctktoplevel.!ctkframe.!ctkframe4.!canvas.!ctkscrollableframe.!ctkbutton5.!ctkcanvas"
+Exception in Tkinter callback
+Traceback (most recent call last):
+  File "C:\Users\pablo\AppData\Local\Python\pythoncore-3.14-64\Lib\tkinter\__init__.py", line 2093, in __call__
+    return self.func(*args)
+           ~~~~~~~~~^^^^^^^
+  File "C:\Users\pablo\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\customtkinter\windows\widgets\core_widget_classes\ctk_base_class.py", line 188, in _update_dimensions_event
+    self._draw(no_color_updates=True)  # faster drawing without color changes
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\pablo\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\customtkinter\windows\widgets\ctk_label.py", line 179, in _draw
+    requires_recoloring = self._draw_engine.draw_rounded_rect_with_border(self._apply_widget_scaling(self._current_width),
+                                                                          self._apply_widget_scaling(self._current_height),
+                                                                          self._apply_widget_scaling(self._corner_radius),
+                                                                          self._apply_widget_scaling(self._border_width))
+  File "C:\Users\pablo\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\customtkinter\windows\widgets\core_rendering\draw_engine.py", line 129, in draw_rounded_rect_with_border
+    return self.__draw_rounded_rect_with_border_font_shapes(width, height, corner_radius, border_width, inner_corner_radius, ())
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\pablo\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\customtkinter\windows\widgets\core_rendering\draw_engine.py", line 249, in __draw_rounded_rect_with_border_font_shapes
+    self._canvas.delete("border_parts")
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^
+  File "C:\Users\pablo\AppData\Local\Python\pythoncore-3.14-64\Lib\tkinter\__init__.py", line 3054, in delete
+    self.tk.call((self._w, 'delete') + args)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_tkinter.TclError: invalid command name ".!ctktoplevel.!ctkframe.!ctklabel3.!ctkcanvas"
+Exception in Tkinter callback
+Traceback (most recent call last):
+  File "C:\Users\pablo\AppData\Local\Python\pythoncore-3.14-64\Lib\tkinter\__init__.py", line 2093, in __call__
+    return self.func(*args)
+           ~~~~~~~~~^^^^^^^
+  File "C:\Users\pablo\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\customtkinter\windows\widgets\core_widget_classes\ctk_base_class.py", line 188, in _update_dimensions_event
+    self._draw(no_color_updates=True)  # faster drawing without color changes
+    ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\pablo\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\customtkinter\windows\widgets\ctk_label.py", line 179, in _draw
+    requires_recoloring = self._draw_engine.draw_rounded_rect_with_border(self._apply_widget_scaling(self._current_width),
+                                                                          self._apply_widget_scaling(self._current_height),
+                                                                          self._apply_widget_scaling(self._corner_radius),
+                                                                          self._apply_widget_scaling(self._border_width))
+  File "C:\Users\pablo\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\customtkinter\windows\widgets\core_rendering\draw_engine.py", line 129, in draw_rounded_rect_with_border
+    return self.__draw_rounded_rect_with_border_font_shapes(width, height, corner_radius, border_width, inner_corner_radius, ())
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\pablo\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\customtkinter\windows\widgets\core_rendering\draw_engine.py", line 249, in __draw_rounded_rect_with_border_font_shapes
+    self._canvas.delete("border_parts")
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^
+  File "C:\Users\pablo\AppData\Local\Python\pythoncore-3.14-64\Lib\tkinter\__init__.py", line 3054, in delete
+    self.tk.call((self._w, 'delete') + args)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_tkinter.TclError: invalid command name ".!ctktoplevel.!ctkframe.!ctklabel4.!ctkcanvas"

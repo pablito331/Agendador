@@ -1,0 +1,10 @@
+customtkinter>=5.2.0
+openpyxl>=3.1.0
+pandas>=2.0.0
+
+# Recursos opcionais: funcionam se estiverem instalados, mas o app continua funcionando sem eles.
+# pynput>=1.7.0
+# pystray>=0.19.0
+# pillow>=10.0.0
+# tkcalendar>=1.6.1
+
