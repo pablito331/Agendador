@@ -44,8 +44,9 @@ jobs:
       id: version
       shell: pwsh
       run: |
-        $version = (python -c "import re; content=open('app.py', encoding='utf-8').read(); match=re.search(r'APP_VERSION = \"([^\"]+)\"', content); print(match.group(1) if match else '1.0.0')")
-        Write-Output "version=$version" >> $env:GITHUB_OUTPUT
+        $version = (Get-Content app.py | Select-String 'APP_VERSION\s*=\s*"([^"]+)"').Matches.Groups[1].Value
+        if (-not $version) { $version = "1.0.1" }
+        "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
         Write-Host "Detected version: $version"
     
     - name: Build executable with PyInstaller
