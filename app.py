@@ -16,7 +16,7 @@ from github_updater import GitHubUpdater
 from utils import now
 from tela_principal import TelaPrincipal
 
-APP_VERSION = "1.0.1"
+APP_VERSION = "1.0.2"
 GITHUB_REPO = "pablito331/Agendador"
 
 ctk.set_appearance_mode("dark")
@@ -127,6 +127,7 @@ class ESFApp:
             abrir_config_callback=self._abrir_config,
             abrir_busca_callback=self._abrir_busca,
             selecionar_planilha_callback=self._selecionar_planilha,
+            abrir_feedback_callback=self._abrir_feedback,
             minimizar_callback=self._minimizar_principal,
         )
         if self.caminho_planilha:
@@ -201,6 +202,13 @@ class ESFApp:
             return
         from tela_busca import TelaBusca
         self._tela_busca = TelaBusca(self.excel, termo_inicial=termo, usuario=self.usuario)
+
+    def _abrir_feedback(self):
+        if self._janela_ativa(getattr(self, '_tela_feedback', None)):
+            self._focar_janela(self._tela_feedback)
+            return
+        from tela_feedback import TelaFeedback
+        self._tela_feedback = TelaFeedback(usuario=self.usuario, versao_app=APP_VERSION)
 
     def _selecionar_planilha(self):
         from tkinter import filedialog, messagebox
@@ -310,22 +318,22 @@ class ESFApp:
             from pynput import keyboard
 
             def combinacao_ativada():
-                # Agendar na thread principal do Tkinter
-                if self.tela_principal and hasattr(self.tela_principal, 'janela'):
+                if hasattr(self, '_root') and self._root:
                     try:
-                        self.tela_principal.janela.after(0, self._mostrar_principal)
-                    except:
+                        self._root.after(0, self._mostrar_principal)
+                    except Exception:
                         pass
                 else:
                     self._mostrar_principal()
 
             hotkey = keyboard.GlobalHotKeys({
-                '<ctrl>+<shift>+a': combinacao_ativada
+                '<ctrl>+<shift>+a': combinacao_ativada,
+                '<ctrl>+<shift>+A': combinacao_ativada
             })
 
             self._hotkey_thread = hotkey
-            hotkey_thread = threading.Thread(target=hotkey.start, daemon=True)
-            hotkey_thread.start()
+            hotkey.daemon = True
+            hotkey.start()
 
             print("Atalho Ctrl+Shift+A configurado!")
 

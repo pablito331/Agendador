@@ -17,7 +17,7 @@ RequestExecutionLevel admin
 SetCompressor /SOLID lzma
 
 ; Versão (atualizada automaticamente pelo build)
-!define VERSION "1.0.1"
+!define VERSION "1.0.2"
 !define PUBLISHER "ESF Saúde"
 !define EXE_NAME "AgendadorESF.exe"
 

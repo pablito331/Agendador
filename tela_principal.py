@@ -6,7 +6,7 @@ import os
 import customtkinter as ctk
 from typing import Optional, Callable
 
-APP_VERSION = "1.0.1"
+APP_VERSION = "1.0.2"
 
 # Cores do tema
 COR_FUNDO = "#2b2b2b"
@@ -29,6 +29,7 @@ class TelaPrincipal:
                  abrir_config_callback: Callable,
                  abrir_busca_callback: Callable,
                  selecionar_planilha_callback: Callable,
+                 abrir_feedback_callback: Optional[Callable] = None,
                  minimizar_callback: Optional[Callable] = None):
         
         self.abrir_agendamento = abrir_agendamento_callback
@@ -38,6 +39,7 @@ class TelaPrincipal:
         self.abrir_config = abrir_config_callback
         self.abrir_busca = abrir_busca_callback
         self.selecionar_planilha = selecionar_planilha_callback
+        self.abrir_feedback = abrir_feedback_callback
         self.minimizar = minimizar_callback
         
         self.janela = ctk.CTkToplevel()
@@ -70,7 +72,7 @@ class TelaPrincipal:
         
         # === BARRA DE TÍTULO ===
         titulo_frame = ctk.CTkFrame(self.frame, fg_color="transparent")
-        titulo_frame.pack(fill="x", pady=(0, 10))
+        titulo_frame.pack(fill="x", pady=(0, 5))
         
         ctk.CTkLabel(
             titulo_frame,
@@ -78,6 +80,17 @@ class TelaPrincipal:
             font=ctk.CTkFont(size=18, weight="bold"),
             text_color=COR_TEXTO
         ).pack(side="left")
+        
+        from datetime import date
+        from utils import get_weekday_name
+        hoje = date.today()
+        data_str = f"📅 {get_weekday_name(hoje)[:3]}, {hoje.strftime('%d/%m/%Y')}"
+        ctk.CTkLabel(
+            titulo_frame,
+            text=data_str,
+            font=ctk.CTkFont(size=11, weight="bold"),
+            text_color=COR_DESTAQUE
+        ).pack(side="right")
         
         # === INDICADOR DE TRAY ===
         tray_label = ctk.CTkLabel(
@@ -127,6 +140,7 @@ class TelaPrincipal:
             ("📋", "AGENDA DO MÉDICO", self.abrir_agenda_medico),
             ("💊", "RECEITAS", self.abrir_receitas),
             ("⚙️", "CONFIGURAÇÕES", self.abrir_config),
+            ("💬", "FEEDBACK / SUPORTE", self.abrir_feedback),
         ]
         
         for icone, texto, comando in botoes:
@@ -204,10 +218,16 @@ class TelaPrincipal:
         self._minimizar()
     
     def mostrar(self):
-        """Mostra a janela"""
-        self.janela.deiconify()
-        self.janela.lift()
-        self.janela.focus_force()
+        """Mostra a janela e traz para a frente com foco garantido"""
+        try:
+            self.janela.deiconify()
+            self.janela.state('normal')
+            self.janela.lift()
+            self.janela.attributes('-topmost', True)
+            self.janela.after(100, lambda: self.janela.attributes('-topmost', False) if self.janela and self.janela.winfo_exists() else None)
+            self.janela.focus_force()
+        except Exception:
+            pass
     
     def ocultar(self):
         """Oculta a janela"""
