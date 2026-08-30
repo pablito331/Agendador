@@ -18,8 +18,12 @@ COR_ERRO = "#dc3545"
 COR_AVISO = "#ffc107"
 
 # Configuração do envio de e-mail via Brevo
-# Cole aqui a API Key gerada no painel do Brevo (https://app.brevo.com)
-BREVO_API_KEY = ""  # <- Preencher após cadastro no Brevo
+# A API Key fica em _secrets.py (ignorado pelo .gitignore — nunca vai pro GitHub)
+try:
+    from _secrets import BREVO_API_KEY
+except ImportError:
+    BREVO_API_KEY = ""  # Fallback: usará o cliente de e-mail local
+
 EMAIL_DESTINO = "thepablitoshouse@gmail.com"
 EMAIL_REMETENTE = "suporte@agendadoresf.app"
 NOME_REMETENTE = "AgendadorESF Feedback"

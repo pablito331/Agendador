@@ -28,3 +28,6 @@ Thumbs.db
 *.log
 *.json.bak
 out.txt
+
+# Segredos / chaves de API (nunca subir para o GitHub)
+_secrets.py
