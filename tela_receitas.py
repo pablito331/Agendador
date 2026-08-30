@@ -373,6 +373,34 @@ class TelaReceitas:
             parent=self.janela
         )
 
+    def _esta_ativa(self) -> bool:
+        try:
+            return bool(self.janela and self.janela.winfo_exists())
+        except Exception:
+            return False
+
+    def mostrar(self):
+        if self.janela:
+            try:
+                self.janela.deiconify()
+                self.janela.lift()
+                self.janela.focus_force()
+                self._carregar_pendentes()
+                self._carregar_todas()
+            except Exception:
+                pass
+
+    def destruir(self):
+        self._fechar()
+
+    def _fechar(self):
+        try:
+            if self.janela:
+                self.janela.destroy()
+        except Exception:
+            pass
+        self.janela = None
+
 
 class ModalRetiradaReceita:
     """Modal independente para registrar a retirada de uma receita"""
@@ -403,12 +431,12 @@ class ModalRetiradaReceita:
         if self.parent:
             try:
                 janela.transient(self.parent)
-            except:
+            except Exception:
                 pass
 
         try:
             janela.grab_set()
-        except:
+        except Exception:
             pass
 
         janela.update_idletasks()
@@ -421,7 +449,7 @@ class ModalRetiradaReceita:
                 x = px + max(0, (pw - 420) // 2)
                 y = py + max(0, (ph - 320) // 2)
                 janela.geometry(f"+{x}+{y}")
-            except:
+            except Exception:
                 pass
 
         frame = ctk.CTkFrame(janela, fg_color=COR_FUNDO)
@@ -486,11 +514,11 @@ class ModalRetiradaReceita:
         def fechar():
             try:
                 janela.grab_release()
-            except:
+            except Exception:
                 pass
             try:
                 janela.destroy()
-            except:
+            except Exception:
                 pass
 
         janela.protocol("WM_DELETE_WINDOW", fechar)
@@ -536,17 +564,4 @@ class ModalRetiradaReceita:
             text_color=COR_TEXTO,
             width=140
         ).pack(side="right")
-    
-    def _esta_ativa(self) -> bool:
-        try:
-            return self.janela and self.janela.winfo_exists()
-        except:
-            return False
-    
-    def _fechar(self):
-        try:
-            self.janela.destroy()
-        except:
-            pass
-        self.janela = None
 

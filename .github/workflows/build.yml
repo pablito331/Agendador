@@ -4,14 +4,13 @@ on:
   push:
     branches:
       - main
-    tags:
-      - 'v*'
     paths:
       - 'app.py'
       - '*.py'
       - 'AgendadorESF.spec'
       - '.github/workflows/build.yml'
       - 'AgendadorESF-Installer.nsi'
+      - 'requirements.txt'
   workflow_dispatch:
 
 permissions:
@@ -57,7 +56,6 @@ jobs:
       shell: pwsh
       run: |
         $ver = "${{ steps.version.outputs.version }}"
-        # Copiar para formato versionado e padrão
         if (Test-Path "./dist/AgendadorESF.exe") {
           Copy-Item "./dist/AgendadorESF.exe" -Destination "./dist/AgendadorESF_v$ver.exe"
         }
@@ -74,6 +72,8 @@ jobs:
       with:
         tag_name: v${{ steps.version.outputs.version }}
         name: Release v${{ steps.version.outputs.version }}
+        make_latest: true
+        fail_on_unmatched_files: false
         body: |
           ## AgendadorESF v${{ steps.version.outputs.version }}
           
@@ -102,4 +102,3 @@ jobs:
           ./dist/AgendadorESF.exe
           ./dist/AgendadorESF_v${{ steps.version.outputs.version }}.exe
           ./AgendadorESF-Setup.exe
-
