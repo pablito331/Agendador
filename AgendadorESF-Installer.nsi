@@ -20,7 +20,7 @@ RequestExecutionLevel admin
 CRCCheck on
 
 ; Versão (será substituída automaticamente)
-!define VERSION "1.0.0"
+!define VERSION "1.0.1"
 !define GITHUB_REPO "pablito331/Agendador"
 !define GITHUB_API "https://api.github.com/repos/${GITHUB_REPO}/releases/latest"
 

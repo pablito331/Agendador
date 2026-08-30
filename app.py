@@ -16,7 +16,7 @@ from github_updater import GitHubUpdater
 from utils import now
 from tela_principal import TelaPrincipal
 
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.0.1"
 GITHUB_REPO = "pablito331/Agendador"
 
 ctk.set_appearance_mode("dark")
@@ -132,17 +132,42 @@ class ESFApp:
         if self.caminho_planilha:
             self.tela_principal.atualizar_status_planilha(self.caminho_planilha)
 
+    def _janela_ativa(self, instancia) -> bool:
+        """Verifica se uma janela já está aberta e visível"""
+        try:
+            return bool(instancia and hasattr(instancia, 'janela') and instancia.janela and instancia.janela.winfo_exists())
+        except Exception:
+            return False
+
+    def _focar_janela(self, instancia):
+        """Traz janela existente para frente"""
+        try:
+            if hasattr(instancia, 'mostrar'):
+                instancia.mostrar()
+            elif hasattr(instancia, 'janela') and instancia.janela:
+                instancia.janela.deiconify()
+                instancia.janela.lift()
+                instancia.janela.focus_force()
+        except Exception:
+            pass
+
     def _abrir_agendamento(self):
+        if self._janela_ativa(getattr(self, '_tela_agendamento', None)):
+            self._focar_janela(self._tela_agendamento)
+            return
         from tela_agendamento import TelaAgendamento
-        TelaAgendamento(self.excel, usuario=self.usuario)
+        self._tela_agendamento = TelaAgendamento(self.excel, usuario=self.usuario)
 
     def _abrir_receitas(self):
+        if self._janela_ativa(getattr(self, '_tela_receitas', None)):
+            self._focar_janela(self._tela_receitas)
+            return
         from tela_receitas import TelaReceitas
-        TelaReceitas(self.excel, usuario=self.usuario)
+        self._tela_receitas = TelaReceitas(self.excel, usuario=self.usuario)
 
     def _abrir_agenda_dia(self):
-        if self.tela_agenda_dia and self.tela_agenda_dia.esta_visivel():
-            self.tela_agenda_dia.mostrar()
+        if self._janela_ativa(self.tela_agenda_dia):
+            self._focar_janela(self.tela_agenda_dia)
         else:
             from tela_agenda_dia import TelaAgendaDia
             if self.tela_agenda_dia:
@@ -150,16 +175,32 @@ class ESFApp:
             self.tela_agenda_dia = TelaAgendaDia(self.excel, usuario=self.usuario)
 
     def _abrir_agenda_medico(self):
+        if self._janela_ativa(getattr(self, '_tela_agenda_medico', None)):
+            self._focar_janela(self._tela_agenda_medico)
+            return
         from tela_agenda_medico import TelaAgendaMedico
-        TelaAgendaMedico(self.excel, usuario=self.usuario)
+        self._tela_agenda_medico = TelaAgendaMedico(self.excel, usuario=self.usuario)
 
     def _abrir_config(self):
+        if self._janela_ativa(getattr(self, '_tela_config', None)):
+            self._focar_janela(self._tela_config)
+            return
         from tela_config import TelaConfig
-        TelaConfig(self.excel, usuario=self.usuario, app_ref=self)
+        self._tela_config = TelaConfig(self.excel, usuario=self.usuario, app_ref=self)
 
     def _abrir_busca(self, termo: str = ""):
+        if self._janela_ativa(getattr(self, '_tela_busca', None)):
+            self._focar_janela(self._tela_busca)
+            if termo and hasattr(self._tela_busca, 'busca_entry'):
+                try:
+                    self._tela_busca.busca_entry.delete(0, 'end')
+                    self._tela_busca.busca_entry.insert(0, termo)
+                    self._tela_busca._executar_busca()
+                except Exception:
+                    pass
+            return
         from tela_busca import TelaBusca
-        TelaBusca(self.excel, termo_inicial=termo, usuario=self.usuario)
+        self._tela_busca = TelaBusca(self.excel, termo_inicial=termo, usuario=self.usuario)
 
     def _selecionar_planilha(self):
         from tkinter import filedialog, messagebox

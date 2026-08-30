@@ -385,9 +385,14 @@ class TelaBusca:
     
     def _abrir_retirada_receita(self, receita):
         """Abre a tela de retirada a partir de um resultado da busca"""
-        from tela_receitas import TelaReceitas
-        tela_receitas = TelaReceitas(self.excel, usuario=self.usuario)
-        tela_receitas._abrir_retirada(receita)
+        from tela_receitas import ModalRetiradaReceita
+        ModalRetiradaReceita(
+            excel=self.excel,
+            receita=receita,
+            usuario=self.usuario,
+            callback_sucesso=self._executar_busca,
+            parent=self.janela
+        )
 
     def _exibir_resultados_receitas(self, resultados):
         """Exibe resultados de receitas"""

@@ -402,13 +402,14 @@ class TelaAgendaDia:
     
     def _abrir_retirada(self, receita):
         """Abre formulário de retirada de receita"""
-        from tela_receitas import TelaReceitas
-        if hasattr(self, '_tela_receitas') and self._tela_receitas:
-            pass
-        else:
-            self._tela_receitas = TelaReceitas(self.excel, self.usuario)
-        
-        self._tela_receitas._abrir_retirada(receita)
+        from tela_receitas import ModalRetiradaReceita
+        ModalRetiradaReceita(
+            excel=self.excel,
+            receita=receita if isinstance(receita, dict) else (receita.to_dict() if hasattr(receita, 'to_dict') else dict(receita)),
+            usuario=self.usuario,
+            callback_sucesso=self._atualizar_dados,
+            parent=self.janela
+        )
     
     def _minimizar(self):
         """Minimiza para a bandeja (oculta janela)"""

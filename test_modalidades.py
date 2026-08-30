@@ -109,34 +109,35 @@ def test_tela_busca_abre_retirada_de_receita_por_resultado(tmp_path, monkeypatch
     excel = ExcelManager(str(caminho))
     receita_id = excel.pedir_receita("Paciente Busca", "obs", "Sistema")
 
-    class FakeTelaReceitas:
-        def __init__(self, excel_manager, usuario=None):
-            self.excel_manager = excel_manager
-            self.usuario = usuario
-            self.receita = None
-
-        def _abrir_retirada(self, receita):
+    class FakeModalRetiradaReceita:
+        def __init__(self, excel, receita, usuario=None, callback_sucesso=None, parent=None):
+            self.excel = excel
             self.receita = receita
+            self.usuario = usuario
+            self.callback_sucesso = callback_sucesso
+            self.parent = parent
 
     captured = {}
 
-    def fake_construtor(excel_manager, usuario=None):
-        instance = FakeTelaReceitas(excel_manager, usuario)
+    def fake_construtor(excel, receita, usuario=None, callback_sucesso=None, parent=None):
+        instance = FakeModalRetiradaReceita(excel, receita, usuario, callback_sucesso, parent)
         captured["instance"] = instance
         return instance
 
-    monkeypatch.setattr("tela_receitas.TelaReceitas", fake_construtor)
+    monkeypatch.setattr("tela_receitas.ModalRetiradaReceita", fake_construtor)
 
     busca = TelaBusca.__new__(TelaBusca)
     busca.excel = excel
     busca.usuario = "Enfermeira"
+    busca.janela = "FakeJanelaBusca"
 
     busca._abrir_retirada_receita({"id": receita_id, "paciente": "Paciente Busca"})
 
-    assert captured["instance"].excel_manager is excel
+    assert captured["instance"].excel is excel
     assert captured["instance"].usuario == "Enfermeira"
     assert captured["instance"].receita["id"] == receita_id
     assert captured["instance"].receita["paciente"] == "Paciente Busca"
+    assert captured["instance"].parent == "FakeJanelaBusca"
 
 
 def test_carregar_caminho_resolve_planilha_relativa_ao_arquivo_de_config(tmp_path, monkeypatch):
@@ -217,7 +218,7 @@ def test_github_updater_detecta_versao_mais_recente(monkeypatch):
                 "body": "Nova versão teste"
             })
 
-    monkeypatch.setattr("github_updater.urllib.request.urlopen", FakeUrlLib.urlopen)
+    monkeypatch.setattr("urllib.request.urlopen", FakeUrlLib.urlopen)
 
     from github_updater import GitHubUpdater
 

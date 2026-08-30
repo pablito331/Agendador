@@ -6,7 +6,7 @@ import os
 import customtkinter as ctk
 from typing import Optional, Callable
 
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.0.1"
 
 # Cores do tema
 COR_FUNDO = "#2b2b2b"

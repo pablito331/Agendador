@@ -364,31 +364,84 @@ class TelaReceitas:
     
     def _abrir_retirada(self, receita):
         """Abre formulário para registrar retirada"""
-        janela = ctk.CTkToplevel(self.janela if self.janela else None)
+        dados_receita = receita.to_dict() if hasattr(receita, 'to_dict') else dict(receita)
+        ModalRetiradaReceita(
+            excel=self.excel,
+            receita=dados_receita,
+            usuario=self.usuario,
+            callback_sucesso=lambda: (self._carregar_pendentes(), self._carregar_todas()),
+            parent=self.janela
+        )
+
+
+class ModalRetiradaReceita:
+    """Modal independente para registrar a retirada de uma receita"""
+
+    def __init__(
+        self,
+        excel: ExcelManager,
+        receita: dict,
+        usuario: str = "Sistema",
+        callback_sucesso: Optional[object] = None,
+        parent=None
+    ):
+        self.excel = excel
+        self.receita = receita if isinstance(receita, dict) else (receita.to_dict() if hasattr(receita, 'to_dict') else dict(receita))
+        self.usuario = usuario
+        self.callback_sucesso = callback_sucesso
+        self.parent = parent
+        self.janela = None
+        self._criar_janela()
+
+    def _criar_janela(self):
+        janela = ctk.CTkToplevel(self.parent if self.parent else None)
+        self.janela = janela
         janela.title("📤 Registrar Retirada")
-        janela.geometry("400x300")
+        janela.geometry("420x320")
         janela.resizable(False, False)
-        if self.janela:
-            janela.transient(self.janela)
-        janela.grab_set()
-        
+
+        if self.parent:
+            try:
+                janela.transient(self.parent)
+            except:
+                pass
+
+        try:
+            janela.grab_set()
+        except:
+            pass
+
+        janela.update_idletasks()
+        if self.parent and self.parent.winfo_exists():
+            try:
+                px = self.parent.winfo_rootx()
+                py = self.parent.winfo_rooty()
+                pw = self.parent.winfo_width()
+                ph = self.parent.winfo_height()
+                x = px + max(0, (pw - 420) // 2)
+                y = py + max(0, (ph - 320) // 2)
+                janela.geometry(f"+{x}+{y}")
+            except:
+                pass
+
         frame = ctk.CTkFrame(janela, fg_color=COR_FUNDO)
         frame.pack(fill="both", expand=True, padx=20, pady=20)
-        
+
+        paciente_nome = str(self.receita.get('paciente', '') or '')
         ctk.CTkLabel(
             frame,
-            text=f"Retirada de Receita - {receita.get('paciente', '')}",
-            font=ctk.CTkFont(size=15, weight="bold"),
+            text=f"Retirada de Receita\n{paciente_nome}",
+            font=ctk.CTkFont(size=14, weight="bold"),
             text_color=COR_TEXTO
         ).pack(pady=(0, 15))
-        
+
         ctk.CTkLabel(
             frame,
             text="Quem retirou:",
             font=ctk.CTkFont(size=13),
             text_color=COR_TEXTO
         ).pack(anchor="w")
-        
+
         retirou_entry = ctk.CTkEntry(
             frame,
             placeholder_text="Nome de quem está retirando",
@@ -400,14 +453,14 @@ class TelaReceitas:
         )
         retirou_entry.pack(fill="x", pady=(5, 10))
         retirou_entry.focus()
-        
+
         ctk.CTkLabel(
             frame,
             text="Observação (opcional):",
             font=ctk.CTkFont(size=12),
             text_color="#aaaaaa"
         ).pack(anchor="w")
-        
+
         obs_entry = ctk.CTkEntry(
             frame,
             placeholder_text="Observações...",
@@ -418,57 +471,70 @@ class TelaReceitas:
             text_color=COR_TEXTO
         )
         obs_entry.pack(fill="x", pady=(5, 10))
-        
+
         msg_label = ctk.CTkLabel(
             frame,
             text="",
             font=ctk.CTkFont(size=12),
             text_color=COR_ERRO
         )
-        msg_label.pack()
-        
+        msg_label.pack(pady=(2, 5))
+
         botoes_frame = ctk.CTkFrame(frame, fg_color="transparent")
-        botoes_frame.pack(fill="x", pady=(10, 0))
-        
+        botoes_frame.pack(fill="x", pady=(5, 0))
+
+        def fechar():
+            try:
+                janela.grab_release()
+            except:
+                pass
+            try:
+                janela.destroy()
+            except:
+                pass
+
+        janela.protocol("WM_DELETE_WINDOW", fechar)
+
         ctk.CTkButton(
             botoes_frame,
             text="CANCELAR",
-            command=janela.destroy,
+            command=fechar,
             fg_color="#555555",
             hover_color="#666666",
             text_color=COR_TEXTO,
             width=100
         ).pack(side="left")
-        
+
         def confirmar():
             quem = retirou_entry.get().strip()
             if not quem:
-                quem = str(receita.get('paciente', '') or '').strip() or "Solicitante"
-            
+                quem = paciente_nome or "Solicitante"
+
             try:
-                id_receita = int(receita['id'])
+                id_receita = int(self.receita['id'])
                 self.excel.retirar_receita(
                     id_receita, quem,
                     observacao=obs_entry.get().strip(),
                     usuario=self.usuario
                 )
                 msg_label.configure(text="✅ Retirada registrada com sucesso!", text_color=COR_SUCESSO)
-                janela.after(1000, janela.destroy)
-                self._carregar_pendentes()
-                self._carregar_todas()
-                if hasattr(self, '_parent_window') and self._parent_window:
-                    self._parent_window.after(0, self._parent_window.update_idletasks)
+                if self.callback_sucesso and callable(self.callback_sucesso):
+                    try:
+                        self.callback_sucesso()
+                    except Exception as err:
+                        print(f"Erro no callback_sucesso: {err}")
+                janela.after(500, fechar)
             except Exception as e:
                 msg_label.configure(text=f"Erro: {str(e)}")
-        
+
         ctk.CTkButton(
             botoes_frame,
-            text="✅ CONFIRMAR RETIRADA",
+            text="✅ CONFIRMAR",
             command=confirmar,
             fg_color=COR_DESTAQUE,
             hover_color="#1a5a8c",
             text_color=COR_TEXTO,
-            width=150
+            width=140
         ).pack(side="right")
     
     def _esta_ativa(self) -> bool:

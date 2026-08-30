@@ -58,9 +58,23 @@ class GitHubUpdater:
         html_url = payload.get("html_url") or f"https://github.com/{self.repo}/releases/tag/{tag}"
         assets = payload.get("assets") or []
         asset_url = ""
-        if assets:
-            first_asset = assets[0]
-            asset_url = first_asset.get("browser_download_url") or ""
+        
+        # Priorizar instalador Setup se disponível, senão executável .exe
+        for a in assets:
+            nome = str(a.get("name", "")).lower()
+            if "setup" in nome and nome.endswith(".exe"):
+                asset_url = a.get("browser_download_url") or ""
+                break
+        
+        if not asset_url:
+            for a in assets:
+                nome = str(a.get("name", "")).lower()
+                if nome.endswith(".exe"):
+                    asset_url = a.get("browser_download_url") or ""
+                    break
+        
+        if not asset_url and assets:
+            asset_url = assets[0].get("browser_download_url") or ""
 
         return {
             "version": tag.replace("v", "", 1),

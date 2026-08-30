@@ -46,6 +46,8 @@ def find_makensis():
         r"C:\Program Files\NSIS\makensis.exe",
         r"C:\Program Files (x86)\NSIS\makensis.exe",
         r"C:\Program Files\Nsis\makensis.exe",
+        r"C:\ProgramData\chocolatey\bin\makensis.exe",
+        r"C:\tools\nsis\makensis.exe",
     ]
     
     for path in possible_paths:
@@ -54,6 +56,10 @@ def find_makensis():
     
     # Tentar encontrar no PATH
     result = subprocess.run(["where", "makensis.exe"], capture_output=True, text=True)
+    if result.returncode == 0:
+        return result.stdout.strip().split("\n")[0]
+    
+    result = subprocess.run(["where", "makensis"], capture_output=True, text=True)
     if result.returncode == 0:
         return result.stdout.strip().split("\n")[0]
     

@@ -1,16 +1,17 @@
 """
 config_manager.py - Gerenciamento da planilha Excel (agenda_esf.xlsx)
 Abas: Config, Agenda, Receitas, Log
+Otimizado com cache em memória baseado em mtime e I/O thread-safe.
 """
 import json
 import os
 import time
+import threading
 import pandas as pd
-from openpyxl import load_workbook, Workbook
-from openpyxl.styles import Font, PatternFill, Alignment
+from openpyxl import Workbook
 from typing import Optional, List, Dict, Any, Tuple
 from datetime import datetime, timedelta
-from utils import now, timestamp_str, date_str, normalize_text, get_modalidade_rules
+from utils import now, timestamp_str, date_str, normalize_text, get_modalidade_rules, search_match
 
 # Constantes
 ARQUIVO_EXCEL = "agenda_esf.xlsx"
@@ -53,119 +54,170 @@ _CONFIG_INICIAL = [
 
 
 class ExcelManager:
-    """Gerencia todas as operações de leitura/escrita na planilha Excel"""
+    """Gerencia todas as operações de leitura/escrita na planilha Excel com cache inteligente."""
     
     def __init__(self, caminho: str = None):
         self.caminho = caminho or ARQUIVO_EXCEL
+        self._lock = threading.RLock()
+        self._cache_mtime = 0.0
+        self._cache_dfs: Dict[str, pd.DataFrame] = {}
         self._inicializar()
     
     def _inicializar(self):
         """Cria o arquivo Excel com as abas necessárias se não existir"""
-        if not os.path.exists(self.caminho):
-            self._criar_planilha()
+        with self._lock:
+            if not os.path.exists(self.caminho):
+                self._criar_planilha()
     
     def _criar_planilha(self):
         """Cria planilha do zero com estrutura inicial"""
-        wb = Workbook()
-        
-        ws_config = wb.active
-        ws_config.title = "Config"
-        ws_config.append(COLUNAS_CONFIG)
-        for linha in _CONFIG_INICIAL:
-            ws_config.append(linha)
-        for col in ['A', 'B', 'C']:
-            ws_config.column_dimensions[col].width = 20
-        
-        ws_agenda = wb.create_sheet("Agenda")
-        ws_agenda.append(COLUNAS_AGENDA)
-        for col in ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M']:
-            ws_agenda.column_dimensions[col].width = 18
-        
-        ws_receitas = wb.create_sheet("Receitas")
-        ws_receitas.append(COLUNAS_RECEITAS)
-        for col in ['A', 'B', 'C', 'D', 'E', 'F', 'G']:
-            ws_receitas.column_dimensions[col].width = 18
-        
-        ws_log = wb.create_sheet("Log")
-        ws_log.append(COLUNAS_LOG)
-        for col in ['A', 'B', 'C', 'D', 'E']:
-            ws_log.column_dimensions[col].width = 22
-        
-        wb.save(self.caminho)
-
-    def _salvar_sheet(self, df: pd.DataFrame, sheet_name: str, max_retries: int = 6, delay: float = 0.6):
-        """
-        Salva o DataFrame na aba especificada com retentativas automáticas
-        em caso de bloqueio por sincronização de nuvem (Google Drive, OneDrive)
-        ou por estar aberto no Excel.
-        """
-        ultimo_erro = None
-        for tentativa in range(1, max_retries + 1):
+        with self._lock:
+            wb = Workbook()
+            
+            ws_config = wb.active
+            ws_config.title = "Config"
+            ws_config.append(COLUNAS_CONFIG)
+            for linha in _CONFIG_INICIAL:
+                ws_config.append(linha)
+            for col in ['A', 'B', 'C']:
+                ws_config.column_dimensions[col].width = 20
+            
+            ws_agenda = wb.create_sheet("Agenda")
+            ws_agenda.append(COLUNAS_AGENDA)
+            for col in ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M']:
+                ws_agenda.column_dimensions[col].width = 18
+            
+            ws_receitas = wb.create_sheet("Receitas")
+            ws_receitas.append(COLUNAS_RECEITAS)
+            for col in ['A', 'B', 'C', 'D', 'E', 'F', 'G']:
+                ws_receitas.column_dimensions[col].width = 18
+            
+            ws_log = wb.create_sheet("Log")
+            ws_log.append(COLUNAS_LOG)
+            for col in ['A', 'B', 'C', 'D', 'E']:
+                ws_log.column_dimensions[col].width = 22
+            
+            pasta = os.path.dirname(self.caminho)
+            if pasta and not os.path.exists(pasta):
+                os.makedirs(pasta, exist_ok=True)
+            wb.save(self.caminho)
+            
             try:
-                with pd.ExcelWriter(self.caminho, engine='openpyxl', mode='a', if_sheet_exists='replace') as writer:
-                    df.to_excel(writer, sheet_name=sheet_name, index=False)
-                return
-            except (PermissionError, OSError) as e:
-                ultimo_erro = e
-                if tentativa < max_retries:
-                    time.sleep(delay)
-        
-        nome_arq = os.path.basename(self.caminho)
-        raise PermissionError(
-            f"Não foi possível salvar na planilha '{nome_arq}'.\n"
-            f"O arquivo está aberto no Microsoft Excel ou sincronizando no Google Drive.\n"
-            f"Por favor, feche a planilha no Excel e tente novamente."
-        ) from ultimo_erro
-    
+                self._cache_mtime = os.path.getmtime(self.caminho)
+            except OSError:
+                self._cache_mtime = time.time()
+            self._cache_dfs.clear()
+
+    def _obter_sheet(self, sheet_name: str, colunas_default: Optional[List[str]] = None) -> pd.DataFrame:
+        """
+        Lê a aba da planilha utilizando cache em memória validado pelo mtime do arquivo.
+        Se o arquivo não foi alterado em disco, retorna do cache em <0.1ms.
+        """
+        with self._lock:
+            if not os.path.exists(self.caminho):
+                self._criar_planilha()
+            
+            try:
+                mtime_atual = os.path.getmtime(self.caminho)
+            except OSError:
+                mtime_atual = 0.0
+            
+            # Se o arquivo foi modificado externamente, limpa o cache
+            if mtime_atual != self._cache_mtime:
+                self._cache_dfs.clear()
+                self._cache_mtime = mtime_atual
+            
+            if sheet_name in self._cache_dfs:
+                return self._cache_dfs[sheet_name].copy()
+            
+            try:
+                df = pd.read_excel(self.caminho, sheet_name=sheet_name, dtype=str)
+            except Exception:
+                df = pd.DataFrame(columns=colunas_default or [])
+            
+            if colunas_default:
+                for col in colunas_default:
+                    if col not in df.columns:
+                        df[col] = ''
+            
+            self._cache_dfs[sheet_name] = df
+            return df.copy()
+
+    def _salvar_sheet(self, df: pd.DataFrame, sheet_name: str, max_retries: int = 5, delay: float = 0.4):
+        """
+        Salva o DataFrame na aba especificada, atualizando o cache em memória
+        e gravando no arquivo com retentativas automáticas e proteção de concorrência.
+        """
+        with self._lock:
+            # Atualiza cache em memória imediatamente
+            self._cache_dfs[sheet_name] = df.copy()
+            
+            ultimo_erro = None
+            for tentativa in range(1, max_retries + 1):
+                try:
+                    with pd.ExcelWriter(self.caminho, engine='openpyxl', mode='a', if_sheet_exists='replace') as writer:
+                        df.to_excel(writer, sheet_name=sheet_name, index=False)
+                    try:
+                        self._cache_mtime = os.path.getmtime(self.caminho)
+                    except OSError:
+                        pass
+                    return
+                except (PermissionError, OSError) as e:
+                    ultimo_erro = e
+                    if tentativa < max_retries:
+                        time.sleep(delay)
+            
+            nome_arq = os.path.basename(self.caminho)
+            raise PermissionError(
+                f"Não foi possível salvar na planilha '{nome_arq}'.\n"
+                f"O arquivo está aberto no Microsoft Excel ou sincronizando no OneDrive/Google Drive.\n"
+                f"Por favor, feche a planilha no Excel e tente novamente."
+            ) from ultimo_erro
+
     # ==================== CONFIG ====================
 
     def _garantir_config_basica(self) -> pd.DataFrame:
         """Garante que a aba Config exista e contenha os registros básicos necessários."""
-        try:
-            df = pd.read_excel(self.caminho, sheet_name="Config", dtype=str)
-        except Exception:
-            self._criar_planilha()
-            df = pd.read_excel(self.caminho, sheet_name="Config", dtype=str)
+        with self._lock:
+            df = self._obter_sheet("Config", COLUNAS_CONFIG)
 
-        if df.empty:
-            df = pd.DataFrame(columns=COLUNAS_CONFIG)
+            if df.empty:
+                df = pd.DataFrame(columns=COLUNAS_CONFIG)
 
-        col_missing = False
-        for col in COLUNAS_CONFIG:
-            if col not in df.columns:
-                df[col] = ''
-                col_missing = True
+            col_missing = False
+            for col in COLUNAS_CONFIG:
+                if col not in df.columns:
+                    df[col] = ''
+                    col_missing = True
 
-        df = df.copy()
-        df = df.dropna(how='all')
-        df['tipo'] = df['tipo'].fillna('').astype(str)
-        df['chave'] = df['chave'].fillna('').astype(str)
-        df['valor'] = df['valor'].fillna('').astype(str)
+            df = df.copy()
+            df = df.dropna(how='all')
+            df['tipo'] = df['tipo'].fillna('').astype(str)
+            df['chave'] = df['chave'].fillna('').astype(str)
+            df['valor'] = df['valor'].fillna('').astype(str)
 
-        linhas_para_adicionar = []
-        existente = set()
-        for _, linha in df.iterrows():
-            chave = (str(linha.get('tipo', '')).strip(), str(linha.get('chave', '')).strip())
-            existente.add(chave)
+            linhas_para_adicionar = []
+            existente = set()
+            for _, linha in df.iterrows():
+                chave = (str(linha.get('tipo', '')).strip(), str(linha.get('chave', '')).strip())
+                existente.add(chave)
 
-        # Não adicionar dados padrão se a planilha já contiver configurações personalizadas.
-        if df.empty:
-            for tipo, chave, valor in _CONFIG_INICIAL:
-                key = (str(tipo).strip(), str(chave).strip())
-                if key not in existente:
-                    linhas_para_adicionar.append({'tipo': tipo, 'chave': chave, 'valor': valor})
-                    existente.add(key)
+            # Se estiver vazio, adiciona configuração padrão
+            if df.empty:
+                for tipo, chave, valor in _CONFIG_INICIAL:
+                    key = (str(tipo).strip(), str(chave).strip())
+                    if key not in existente:
+                        linhas_para_adicionar.append({'tipo': tipo, 'chave': chave, 'valor': valor})
+                        existente.add(key)
 
-        if linhas_para_adicionar:
-            df = pd.concat([df, pd.DataFrame(linhas_para_adicionar)], ignore_index=True)
-            df = df.drop_duplicates(subset=['tipo', 'chave'], keep='last')
-            with pd.ExcelWriter(self.caminho, engine='openpyxl', mode='a', if_sheet_exists='replace') as writer:
-                df.to_excel(writer, sheet_name='Config', index=False)
-        elif col_missing:
-            with pd.ExcelWriter(self.caminho, engine='a', if_sheet_exists='replace') as writer:
-                df.to_excel(writer, sheet_name='Config', index=False)
+            if linhas_para_adicionar:
+                df = pd.concat([df, pd.DataFrame(linhas_para_adicionar)], ignore_index=True)
+                df = df.drop_duplicates(subset=['tipo', 'chave'], keep='last')
+                self._salvar_sheet(df, sheet_name='Config')
+            elif col_missing:
+                self._salvar_sheet(df, sheet_name='Config')
 
-        return df
+            return df
 
     def get_config(self, tipo: str = None, chave: str = None) -> pd.DataFrame:
         try:
@@ -342,21 +394,14 @@ class ExcelManager:
         return [h.strip() for h in horarios_str.split(',') if h.strip()]
 
     def get_horarios_modalidade(self, modalidade: str, dia_semana: str, turno: str) -> List[str]:
-        """
-        Retorna os horarios configurados para uma modalidade especial.
-        Ex: modalidade='domiciliar', dia='qui', turno='manha'
-        Se nao houver configuracao, retorna horarios a cada 30 min dentro do turno.
-        """
         chave = f"{modalidade}_{dia_semana}_{turno}"
         df = self.get_config(tipo='horario_modalidade', chave=chave)
         if df.empty:
-            # Fallback: horarios a cada 30 minutos dentro do turno
             return self._gerar_horarios_padrao_modalidade(turno)
         horarios_str = df.iloc[0]['valor']
         return [h.strip() for h in horarios_str.split(',') if h.strip()]
 
     def _gerar_horarios_padrao_modalidade(self, turno: str) -> List[str]:
-        """Gera horarios a cada 30 minutos para o turno informado"""
         if turno == 'manha':
             inicio, fim = 8, 12
         else:
@@ -368,9 +413,7 @@ class ExcelManager:
         return horarios
 
     def salvar_horario_modalidade(self, modalidade: str, dia_semana: str, turno: str, horarios_str: str):
-        """Salva os horarios configurados para uma modalidade especial"""
         chave = f"{modalidade}_{dia_semana}_{turno}"
-        # Buscar config atual
         df = self._garantir_config_basica()
         idx = df[(df['tipo'] == 'horario_modalidade') & (df['chave'] == chave)].index
         if not idx.empty:
@@ -382,7 +425,6 @@ class ExcelManager:
         self._salvar_sheet(df, sheet_name='Config')
     
     def get_limite_encaixes(self, medico_chave: str, dia_semana: str, turno: str) -> int:
-        # Limite padrão de encaixes é 4, salvo se houver configuração explícita na planilha.
         chave = f"{medico_chave}_{dia_semana}_{turno}"
         df = self.get_config(tipo='espontanea', chave=chave)
         if df.empty:
@@ -444,31 +486,31 @@ class ExcelManager:
         df['valor'] = df['valor'].fillna('').astype(str)
         df = df.drop_duplicates(subset=['tipo', 'chave'], keep='last')
 
-        with pd.ExcelWriter(self.caminho, engine='openpyxl', mode='a', if_sheet_exists='replace') as writer:
-            df.to_excel(writer, sheet_name='Config', index=False)
+        self._salvar_sheet(df, sheet_name='Config')
     
     # ==================== AGENDA ====================
     
     def get_proximo_id_agenda(self) -> int:
         try:
-            df = pd.read_excel(self.caminho, sheet_name="Agenda", dtype={'id': int})
-            if df.empty:
+            df = self._obter_sheet("Agenda", COLUNAS_AGENDA)
+            if df.empty or 'id' not in df.columns:
                 return 1
-            return df['id'].max() + 1
-        except:
+            ids = pd.to_numeric(df['id'], errors='coerce').dropna()
+            return int(ids.max() + 1) if not ids.empty else 1
+        except Exception:
             return 1
     
     def get_agenda(self, data: str = None, medico: str = None, status: str = 'ATIVO') -> pd.DataFrame:
         try:
-            df = pd.read_excel(self.caminho, sheet_name="Agenda", dtype=str)
+            df = self._obter_sheet("Agenda", COLUNAS_AGENDA)
             if df.empty:
                 return pd.DataFrame(columns=COLUNAS_AGENDA)
             if data:
-                df = df[df['data'] == data]
+                df = df[df['data'] == str(data)]
             if medico:
-                df = df[df['medico'] == medico]
+                df = df[df['medico'] == str(medico)]
             if status:
-                df = df[df['status'] == status]
+                df = df[df['status'] == str(status)]
             return df.sort_values('hora', na_position='last')
         except Exception as e:
             print(f"Erro ao ler Agenda: {e}")
@@ -481,103 +523,97 @@ class ExcelManager:
     def agendar_consulta(self, paciente: str, medico: str, tipo_consulta: str,
                          data: str, hora: str, encaixe: bool = False,
                          observacao: str = "", usuario: str = "Sistema") -> int:
-        novo_id = self.get_proximo_id_agenda()
-        timestamp = timestamp_str()
-        
-        novo_registro = {
-            'id': novo_id,
-            'paciente': paciente.strip(),
-            'medico': medico.strip(),
-            'tipo_consulta': tipo_consulta.strip(),
-            'data': data,
-            'hora': hora,
-            'encaixe': 'TRUE' if encaixe else 'FALSE',
-            'status': 'ATIVO',
-            'compareceu': 'FALSE',
-            'quando_confirmou_presenca': '',
-            'observacao': observacao.strip(),
-            'criado_em': timestamp,
-            'criado_por': usuario.strip()
-        }
-        
-        try:
-            df = pd.read_excel(self.caminho, sheet_name="Agenda", dtype=str)
-        except:
-            df = pd.DataFrame(columns=COLUNAS_AGENDA)
-        
-        for col in COLUNAS_AGENDA:
-            if col not in df.columns:
-                df[col] = ''
-        
-        novo_df = pd.DataFrame([novo_registro])
-        df = pd.concat([df, novo_df], ignore_index=True)
-        
-        self._salvar_sheet(df, sheet_name='Agenda')
-        
-        tipo_acao = ACAO_ENCAIXAR if encaixe else ACAO_AGENDAR
-        detalhes = f"{tipo_consulta} - {paciente} - {medico} - {data} {hora}"
-        self.registrar_log(tipo_acao, detalhes, usuario)
-        
-        return novo_id
+        with self._lock:
+            df = self._obter_sheet("Agenda", COLUNAS_AGENDA)
+            novo_id = self.get_proximo_id_agenda()
+            timestamp = timestamp_str()
+            
+            novo_registro = {
+                'id': str(novo_id),
+                'paciente': paciente.strip(),
+                'medico': medico.strip(),
+                'tipo_consulta': tipo_consulta.strip(),
+                'data': str(data),
+                'hora': str(hora),
+                'encaixe': 'TRUE' if encaixe else 'FALSE',
+                'status': 'ATIVO',
+                'compareceu': 'FALSE',
+                'quando_confirmou_presenca': '',
+                'observacao': observacao.strip(),
+                'criado_em': timestamp,
+                'criado_por': usuario.strip()
+            }
+            
+            for col in COLUNAS_AGENDA:
+                if col not in df.columns:
+                    df[col] = ''
+            
+            novo_df = pd.DataFrame([novo_registro])
+            df = pd.concat([df, novo_df], ignore_index=True)
+            
+            self._salvar_sheet(df, sheet_name='Agenda')
+            
+            tipo_acao = ACAO_ENCAIXAR if encaixe else ACAO_AGENDAR
+            detalhes = f"{tipo_consulta} - {paciente} - {medico} - {data} {hora}"
+            self.registrar_log(tipo_acao, detalhes, usuario)
+            
+            return novo_id
     
     def cancelar_consulta(self, id_agenda: int, usuario: str = "Sistema"):
-        df = pd.read_excel(self.caminho, sheet_name="Agenda", dtype=str)
-        id_str = str(id_agenda)
-        df.loc[df['id'] == id_str, 'status'] = 'CANCELADO'
-        self._salvar_sheet(df, sheet_name='Agenda')
-        paciente = df[df['id'] == id_str].iloc[0]['paciente']
-        self.registrar_log(ACAO_CANCELAR, f"ID {id_agenda} - {paciente}", usuario)
+        with self._lock:
+            df = self._obter_sheet("Agenda", COLUNAS_AGENDA)
+            id_str = str(id_agenda)
+            idx = df[df['id'] == id_str].index
+            if idx.empty:
+                return
+            df.loc[idx, 'status'] = 'CANCELADO'
+            self._salvar_sheet(df, sheet_name='Agenda')
+            paciente = df.loc[idx[0], 'paciente']
+            self.registrar_log(ACAO_CANCELAR, f"ID {id_agenda} - {paciente}", usuario)
 
     def editar_consulta(self, id_agenda: int, campos: dict, usuario: str = "Sistema"):
-        """
-        Edita os campos de uma consulta existente.
+        with self._lock:
+            df = self._obter_sheet("Agenda", COLUNAS_AGENDA)
+            id_str = str(id_agenda)
+            idx = df[df['id'] == id_str].index
 
-        Parâmetros
-        ----------
-        id_agenda : int
-            ID da consulta a editar.
-        campos : dict
-            Dicionário com os campos a atualizar. Chaves permitidas:
-            paciente, medico, tipo_consulta, data, hora, encaixe, observacao
-        usuario : str
-        """
-        df = pd.read_excel(self.caminho, sheet_name="Agenda", dtype=str)
-        id_str = str(id_agenda)
-        idx = df[df['id'] == id_str].index
+            if idx.empty:
+                raise ValueError(f"Consulta ID {id_agenda} não encontrada.")
 
-        if idx.empty:
-            raise ValueError(f"Consulta ID {id_agenda} não encontrada.")
+            campos_permitidos = {'paciente', 'medico', 'tipo_consulta', 'data', 'hora', 'encaixe', 'observacao'}
+            alteracoes = []
 
-        campos_permitidos = {'paciente', 'medico', 'tipo_consulta', 'data', 'hora', 'encaixe', 'observacao'}
-        alteracoes = []
+            for campo, valor in campos.items():
+                if campo not in campos_permitidos:
+                    continue
+                valor_str = str(valor).strip()
+                valor_anterior = str(df.loc[idx[0], campo]).strip() if campo in df.columns else ''
+                if valor_str != valor_anterior:
+                    df.loc[idx, campo] = valor_str
+                    alteracoes.append(f"{campo}: '{valor_anterior}' → '{valor_str}'")
 
-        for campo, valor in campos.items():
-            if campo not in campos_permitidos:
-                continue
-            valor_str = str(valor).strip()
-            valor_anterior = str(df.loc[idx[0], campo]).strip() if campo in df.columns else ''
-            if valor_str != valor_anterior:
-                df.loc[idx, campo] = valor_str
-                alteracoes.append(f"{campo}: '{valor_anterior}' → '{valor_str}'")
+            if not alteracoes:
+                return
 
-        if not alteracoes:
-            return  # nada mudou, não salva
+            self._salvar_sheet(df, sheet_name='Agenda')
 
-        self._salvar_sheet(df, sheet_name='Agenda')
-
-        paciente = df.loc[idx[0], 'paciente']
-        detalhes = f"ID {id_agenda} - {paciente} | " + " | ".join(alteracoes)
-        self.registrar_log(ACAO_EDITAR, detalhes, usuario)
+            paciente = df.loc[idx[0], 'paciente']
+            detalhes = f"ID {id_agenda} - {paciente} | " + " | ".join(alteracoes)
+            self.registrar_log(ACAO_EDITAR, detalhes, usuario)
 
     def marcar_presenca(self, id_agenda: int, presente: bool = True, usuario: str = "Sistema"):
-        df = pd.read_excel(self.caminho, sheet_name="Agenda", dtype=str)
-        id_str = str(id_agenda)
-        df.loc[df['id'] == id_str, 'compareceu'] = 'TRUE' if presente else 'FALSE'
-        df.loc[df['id'] == id_str, 'quando_confirmou_presenca'] = timestamp_str() if presente else ''
-        self._salvar_sheet(df, sheet_name='Agenda')
-        acao = ACAO_MARCAR_PRESENCA if presente else ACAO_DESMARCAR_PRESENCA
-        paciente = df[df['id'] == id_str].iloc[0]['paciente']
-        self.registrar_log(acao, f"ID {id_agenda} - {paciente}", usuario)
+        with self._lock:
+            df = self._obter_sheet("Agenda", COLUNAS_AGENDA)
+            id_str = str(id_agenda)
+            idx = df[df['id'] == id_str].index
+            if idx.empty:
+                return
+            df.loc[idx, 'compareceu'] = 'TRUE' if presente else 'FALSE'
+            df.loc[idx, 'quando_confirmou_presenca'] = timestamp_str() if presente else ''
+            self._salvar_sheet(df, sheet_name='Agenda')
+            acao = ACAO_MARCAR_PRESENCA if presente else ACAO_DESMARCAR_PRESENCA
+            paciente = df.loc[idx[0], 'paciente']
+            self.registrar_log(acao, f"ID {id_agenda} - {paciente}", usuario)
     
     def contar_encaixes_usados(self, medico: str, data: str) -> int:
         df = self.get_agenda(data=data, medico=medico, status='ATIVO')
@@ -589,80 +625,80 @@ class ExcelManager:
     
     def get_proximo_id_receita(self) -> int:
         try:
-            df = pd.read_excel(self.caminho, sheet_name="Receitas", dtype={'id': int})
-            if df.empty:
+            df = self._obter_sheet("Receitas", COLUNAS_RECEITAS)
+            if df.empty or 'id' not in df.columns:
                 return 1
-            return df['id'].max() + 1
-        except:
+            ids = pd.to_numeric(df['id'], errors='coerce').dropna()
+            return int(ids.max() + 1) if not ids.empty else 1
+        except Exception:
             return 1
     
     def get_receitas_pendentes(self) -> pd.DataFrame:
         try:
-            df = pd.read_excel(self.caminho, sheet_name="Receitas", dtype=str)
+            df = self._obter_sheet("Receitas", COLUNAS_RECEITAS)
             if df.empty:
                 return pd.DataFrame(columns=COLUNAS_RECEITAS)
             return df[df['status'] == 'PENDENTE'].sort_values('data_pedido', ascending=False)
-        except:
+        except Exception:
             return pd.DataFrame(columns=COLUNAS_RECEITAS)
     
     def get_todas_receitas(self) -> pd.DataFrame:
         try:
-            df = pd.read_excel(self.caminho, sheet_name="Receitas", dtype=str)
+            df = self._obter_sheet("Receitas", COLUNAS_RECEITAS)
             if df.empty:
                 return pd.DataFrame(columns=COLUNAS_RECEITAS)
             return df.sort_values('data_pedido', ascending=False)
-        except:
+        except Exception:
             return pd.DataFrame(columns=COLUNAS_RECEITAS)
     
     def pedir_receita(self, paciente: str, observacao: str = "", usuario: str = "Sistema") -> int:
-        novo_id = self.get_proximo_id_receita()
-        timestamp = timestamp_str()
-        
-        novo_registro = {
-            'id': novo_id,
-            'paciente': paciente.strip(),
-            'status': 'PENDENTE',
-            'quem_retirou': '',
-            'observacao': observacao.strip(),
-            'data_pedido': timestamp,
-            'data_retirada': ''
-        }
-        
-        try:
-            df = pd.read_excel(self.caminho, sheet_name="Receitas", dtype=str)
-        except:
-            df = pd.DataFrame(columns=COLUNAS_RECEITAS)
-        
-        for col in COLUNAS_RECEITAS:
-            if col not in df.columns:
-                df[col] = ''
-        
-        novo_df = pd.DataFrame([novo_registro])
-        df = pd.concat([df, novo_df], ignore_index=True)
-        
-        self._salvar_sheet(df, sheet_name='Receitas')
-        
-        self.registrar_log(ACAO_PEDIR_RECEITA, f"{paciente}", usuario)
-        return novo_id
+        with self._lock:
+            df = self._obter_sheet("Receitas", COLUNAS_RECEITAS)
+            novo_id = self.get_proximo_id_receita()
+            timestamp = timestamp_str()
+            
+            novo_registro = {
+                'id': str(novo_id),
+                'paciente': paciente.strip(),
+                'status': 'PENDENTE',
+                'quem_retirou': '',
+                'observacao': observacao.strip(),
+                'data_pedido': timestamp,
+                'data_retirada': ''
+            }
+            
+            for col in COLUNAS_RECEITAS:
+                if col not in df.columns:
+                    df[col] = ''
+            
+            novo_df = pd.DataFrame([novo_registro])
+            df = pd.concat([df, novo_df], ignore_index=True)
+            
+            self._salvar_sheet(df, sheet_name='Receitas')
+            self.registrar_log(ACAO_PEDIR_RECEITA, f"{paciente}", usuario)
+            return novo_id
     
     def retirar_receita(self, id_receita: int, quem_retirou: str, 
                         observacao: str = "", usuario: str = "Sistema"):
-        df = pd.read_excel(self.caminho, sheet_name="Receitas", dtype=str)
-        timestamp = timestamp_str()
-        
-        df['id'] = df['id'].astype(str)
-        id_receita_str = str(id_receita)
+        with self._lock:
+            df = self._obter_sheet("Receitas", COLUNAS_RECEITAS)
+            timestamp = timestamp_str()
+            
+            id_receita_str = str(id_receita)
+            idx = df[df['id'] == id_receita_str].index
+            if idx.empty:
+                return
 
-        df.loc[df['id'] == id_receita_str, 'status'] = 'RETIRADA'
-        df.loc[df['id'] == id_receita_str, 'quem_retirou'] = quem_retirou.strip()
-        df.loc[df['id'] == id_receita_str, 'data_retirada'] = timestamp
-        if observacao:
-            df.loc[df['id'] == id_receita_str, 'observacao'] += f" | Retirada: {observacao.strip()}"
-        
-        self._salvar_sheet(df, sheet_name='Receitas')
-        
-        paciente = df[df['id'] == id_receita_str].iloc[0]['paciente']
-        self.registrar_log(ACAO_RETIRAR_RECEITA, f"ID {id_receita} - {paciente} - Retirado por: {quem_retirou}", usuario)
+            df.loc[idx, 'status'] = 'RETIRADA'
+            df.loc[idx, 'quem_retirou'] = quem_retirou.strip()
+            df.loc[idx, 'data_retirada'] = timestamp
+            if observacao:
+                obs_atual = str(df.loc[idx[0], 'observacao'] or '')
+                df.loc[idx, 'observacao'] = f"{obs_atual} | Retirada: {observacao.strip()}".strip(" |")
+            
+            self._salvar_sheet(df, sheet_name='Receitas')
+            paciente = df.loc[idx[0], 'paciente']
+            self.registrar_log(ACAO_RETIRAR_RECEITA, f"ID {id_receita} - {paciente} - Retirado por: {quem_retirou}", usuario)
     
     # ==================== DATA DE RETIRADA DE RECEITAS ====================
     
@@ -671,20 +707,22 @@ class ExcelManager:
         Calcula a data prevista de retirada da receita com base na regra:
         - Pedido na SEGUNDA → retirada na SEXTA da MESMA semana
         - Pedido de TERÇA a SEXTA → retirada na SEXTA da PRÓXIMA semana
-        Retorna string no formato YYYY-MM-DD
         """
         if data_pedido_str:
-            data_pedido = datetime.strptime(data_pedido_str[:10], "%Y-%m-%d")
+            try:
+                data_pedido = datetime.strptime(data_pedido_str[:10], "%Y-%m-%d")
+            except Exception:
+                data_pedido = now()
         else:
             data_pedido = now()
         
         dia_semana = data_pedido.weekday()  # 0=segunda, 1=terça, ..., 4=sexta
         
         if dia_semana == 0:  # Segunda-feira
-            dias_para_sexta = 4  # segunda(0) -> sexta(4)
+            dias_para_sexta = 4
             data_retirada = data_pedido + timedelta(days=dias_para_sexta)
         elif dia_semana <= 4:  # Terça a Sexta
-            dias_para_sexta = (4 - dia_semana) + 7  # dias até sexta que vem
+            dias_para_sexta = (4 - dia_semana) + 7
             data_retirada = data_pedido + timedelta(days=dias_para_sexta)
         else:  # Sábado ou Domingo
             dias_para_sexta = (4 - dia_semana) + 7
@@ -693,13 +731,14 @@ class ExcelManager:
         return data_retirada.strftime("%Y-%m-%d")
     
     def get_data_retirada_formatada(self, data_pedido_str: str) -> str:
-        """Retorna data de retirada formatada para exibição (dd/mm/aaaa)"""
         data_retirada = self.calcular_data_retirada_receita(data_pedido_str)
-        data_obj = datetime.strptime(data_retirada, "%Y-%m-%d")
-        return data_obj.strftime("%d/%m/%Y")
+        try:
+            data_obj = datetime.strptime(data_retirada, "%Y-%m-%d")
+            return data_obj.strftime("%d/%m/%Y")
+        except Exception:
+            return data_retirada
     
     def get_receitas_pendentes_com_retirada(self) -> List[Dict]:
-        """Retorna receitas pendentes com data de retirada calculada"""
         pendentes = self.get_receitas_pendentes()
         if pendentes.empty:
             return []
@@ -718,44 +757,43 @@ class ExcelManager:
     
     def get_proximo_id_log(self) -> int:
         try:
-            df = pd.read_excel(self.caminho, sheet_name="Log", dtype={'id': int})
-            if df.empty:
+            df = self._obter_sheet("Log", COLUNAS_LOG)
+            if df.empty or 'id' not in df.columns:
                 return 1
-            return df['id'].max() + 1
-        except:
+            ids = pd.to_numeric(df['id'], errors='coerce').dropna()
+            return int(ids.max() + 1) if not ids.empty else 1
+        except Exception:
             return 1
     
     def registrar_log(self, acao: str, detalhes: str = "", usuario: str = "Sistema"):
-        novo_id = self.get_proximo_id_log()
-        timestamp = timestamp_str()
-        
-        novo_registro = {
-            'id': novo_id,
-            'timestamp': timestamp,
-            'acao': acao,
-            'detalhes': str(detalhes),
-            'usuario': str(usuario)
-        }
-        
-        try:
-            df = pd.read_excel(self.caminho, sheet_name="Log", dtype=str)
-        except:
-            df = pd.DataFrame(columns=COLUNAS_LOG)
-        
-        for col in COLUNAS_LOG:
-            if col not in df.columns:
-                df[col] = ''
-        
-        novo_df = pd.DataFrame([novo_registro])
-        df = pd.concat([df, novo_df], ignore_index=True)
-        
-        self._salvar_sheet(df, sheet_name='Log')
+        with self._lock:
+            try:
+                df = self._obter_sheet("Log", COLUNAS_LOG)
+                novo_id = self.get_proximo_id_log()
+                timestamp = timestamp_str()
+                
+                novo_registro = {
+                    'id': str(novo_id),
+                    'timestamp': timestamp,
+                    'acao': acao,
+                    'detalhes': str(detalhes),
+                    'usuario': str(usuario)
+                }
+                
+                for col in COLUNAS_LOG:
+                    if col not in df.columns:
+                        df[col] = ''
+                
+                novo_df = pd.DataFrame([novo_registro])
+                df = pd.concat([df, novo_df], ignore_index=True)
+                
+                self._salvar_sheet(df, sheet_name='Log')
+            except Exception as e:
+                print(f"Erro ao registrar log: {e}")
     
     # ==================== BUSCA GLOBAL ====================
     
     def buscar_global(self, termo: str) -> Dict[str, List[Dict]]:
-        from utils import normalize_text, search_match
-        
         resultados = {
             'agenda': [],
             'receitas': [],
@@ -764,8 +802,10 @@ class ExcelManager:
         if not termo or not termo.strip():
             return resultados
         
+        termo_limpo = termo.strip()
+        
         try:
-            df_agenda = pd.read_excel(self.caminho, sheet_name="Agenda", dtype=str)
+            df_agenda = self._obter_sheet("Agenda", COLUNAS_AGENDA)
             if not df_agenda.empty:
                 for _, row in df_agenda.iterrows():
                     campos_busca = [
@@ -775,7 +815,7 @@ class ExcelManager:
                         row.get('observacao', ''),
                         row.get('data', ''),
                     ]
-                    if any(search_match(termo, str(c)) for c in campos_busca):
+                    if any(search_match(termo_limpo, str(c)) for c in campos_busca):
                         resultados['agenda'].append({
                             'id': row.get('id'),
                             'paciente': row.get('paciente', ''),
@@ -792,7 +832,7 @@ class ExcelManager:
             print(f"Erro na busca em Agenda: {e}")
         
         try:
-            df_receitas = pd.read_excel(self.caminho, sheet_name="Receitas", dtype=str)
+            df_receitas = self._obter_sheet("Receitas", COLUNAS_RECEITAS)
             if not df_receitas.empty:
                 for _, row in df_receitas.iterrows():
                     campos_busca = [
@@ -800,7 +840,7 @@ class ExcelManager:
                         row.get('quem_retirou', ''),
                         row.get('observacao', ''),
                     ]
-                    if any(search_match(termo, str(c)) for c in campos_busca):
+                    if any(search_match(termo_limpo, str(c)) for c in campos_busca):
                         resultados['receitas'].append({
                             'id': row.get('id'),
                             'paciente': row.get('paciente', ''),

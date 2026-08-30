@@ -4,24 +4,32 @@ on:
   push:
     branches:
       - main
+    tags:
+      - 'v*'
     paths:
       - 'app.py'
       - '*.py'
       - 'AgendadorESF.spec'
       - '.github/workflows/build.yml'
       - 'AgendadorESF-Installer.nsi'
+  workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
     runs-on: windows-latest
     
     steps:
-    - uses: actions/checkout@v3
+    - name: Checkout repository
+      uses: actions/checkout@v4
     
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.11'
+        cache: 'pip'
     
     - name: Install NSIS
       run: |
@@ -33,24 +41,34 @@ jobs:
         pip install -r requirements.txt
         pip install pyinstaller
     
+    - name: Get version
+      id: version
+      shell: pwsh
+      run: |
+        $version = (python -c "import re; content=open('app.py', encoding='utf-8').read(); match=re.search(r'APP_VERSION = \"([^\"]+)\"', content); print(match.group(1) if match else '1.0.0')")
+        Write-Output "version=$version" >> $env:GITHUB_OUTPUT
+        Write-Host "Detected version: $version"
+    
     - name: Build executable with PyInstaller
       run: |
-        pyinstaller AgendadorESF.spec
+        pyinstaller AgendadorESF.spec --noconfirm
+    
+    - name: Prepare portable executables
+      shell: pwsh
+      run: |
+        $ver = "${{ steps.version.outputs.version }}"
+        # Copiar para formato versionado e padrão
+        if (Test-Path "./dist/AgendadorESF.exe") {
+          Copy-Item "./dist/AgendadorESF.exe" -Destination "./dist/AgendadorESF_v$ver.exe"
+        }
     
     - name: Build NSIS Installer
       run: |
         python compile_nsis_installer.py
     
-    - name: Get version
-      id: version
-      run: |
-        $version = (python -c "import re; content=open('app.py').read(); match=re.search(r'APP_VERSION = \"([^\"]+)\"', content); print(match.group(1))")
-        echo "version=$version" | Out-String | Add-Content -Path $env:GITHUB_OUTPUT
-    
-    
     - name: Create Release
       if: success()
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
@@ -61,36 +79,27 @@ jobs:
           
           ### 📥 Download (Escolha uma opção)
           
-          **Opção 1 - Instalador Online (Recomendado)**
+          **Opção 1 - Instalador (Recomendado)**
           - Arquivo: `AgendadorESF-Setup.exe`
-          - Tamanho: ~5-10MB
-          - Baixa a app do GitHub durante instalação
-          - Cria atalhos automaticamente
+          - Cria atalhos na Área de Trabalho e Menu Iniciar
+          - Instalação e desinstalação automática
           
           **Opção 2 - Executável Portátil**
-          - Arquivo: `AgendadorESF.exe`
-          - Tamanho: ~60MB
-          - Executável standalone
-          - Pode rodar de qualquer lugar
+          - Arquivo: `AgendadorESF.exe` / `AgendadorESF_v${{ steps.version.outputs.version }}.exe`
+          - Executável standalone que roda sem precisar instalar
           
-          ### 🚀 Instalação
-          1. Baixe um dos arquivos acima
-          2. Execute o arquivo
-          3. Siga as instruções na tela
-          4. O app abrirá automaticamente ao final
+          ### 🚀 Instruções
+          1. Baixe o instalador `AgendadorESF-Setup.exe` ou o executável portátil.
+          2. Execute o arquivo baixado.
+          3. O sistema manterá sua planilha `agenda_esf.xlsx` segura e preservará todos os dados!
           
-          ### ℹ️ Informações
-          - Versão: v${{ steps.version.outputs.version }}
-          - Data: ${{ github.event.head_commit.timestamp }}
-          - Python: 3.11
-          
-          ### 🔄 Atualização
-          Se você já tem o app instalado, ele notificará automaticamente sobre novas versões.
-          
-          ### 📝 Mudanças
-          Consulte o histórico do git para detalhes das alterações.
+          ### ℹ️ Informações da Release
+          - Versão: `v${{ steps.version.outputs.version }}`
+          - Data da compilação: ${{ github.event.head_commit.timestamp || github.event.repository.updated_at }}
         draft: false
         prerelease: false
         files: |
+          ./dist/AgendadorESF.exe
           ./dist/AgendadorESF_v${{ steps.version.outputs.version }}.exe
           ./AgendadorESF-Setup.exe
+
