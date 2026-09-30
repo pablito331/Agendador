@@ -16,7 +16,7 @@ from github_updater import GitHubUpdater
 from utils import now
 from tela_principal import TelaPrincipal
 
-APP_VERSION = "1.0.2"
+APP_VERSION = "1.0.3"
 GITHUB_REPO = "pablito331/Agendador"
 
 ctk.set_appearance_mode("dark")
@@ -60,16 +60,68 @@ class ESFApp:
         self._rodando = True
         self._tray_icon = None
         self._hotkey_thread = None
+        self._verificacao_timer = None
 
         self._inicializar()
 
     def _inicializar(self):
         self._criar_janela_root()
         self._criar_janela_principal()
+        self._root.after(1500, self._verificar_pendencia_atualizacao)
         self._verificar_atualizacao_thread()  # Verificar em background
+        self._agendar_rechecagem_atualizacao()
         self._iniciar_tray()
         self._iniciar_hotkey()
         self._iniciar_loop()
+
+    # ==================== ATUALIZAÇÃO AUTOMÁTICA ====================
+
+    def _verificar_pendencia_atualizacao(self):
+        """Se uma atualização anterior não foi concluída, oferece aplicar agora."""
+        try:
+            pendente = self.updater.verificar_atualizacao_pendente()
+        except Exception:
+            pendente = {}
+        if not pendente:
+            return
+
+        from tkinter import messagebox
+        parent = self.tela_principal.janela if self.tela_principal else self._root
+        resposta = messagebox.askyesno(
+            "Atualização pendente",
+            "Existe uma atualização baixada que não foi concluída.\n\n"
+            "Deseja aplicar agora? O aplicativo será fechado e reaberto "
+            "automaticamente na nova versão.",
+            parent=parent,
+        )
+        if resposta:
+            ok = self.updater.agendar_instalacao(
+                pendente.get("setup", ""),
+                reiniciar=bool(pendente.get("reiniciar", True)),
+            )
+            if ok:
+                self._sair()
+                return
+            messagebox.showerror(
+                "Atualização",
+                "Não foi possível iniciar a instalação. Tente atualizar\n"
+                "novamente pelo banner de atualização.",
+                parent=parent,
+            )
+        GitHubUpdater.limpar_atualizacao_pendente()
+
+    def _agendar_rechecagem_atualizacao(self):
+        """Re-verifica atualizações periodicamente (a cada 4 horas)."""
+        intervalo_ms = 4 * 60 * 60 * 1000
+
+        def recheck():
+            self._verificar_atualizacao_thread()
+            self._agendar_rechecagem_atualizacao()
+
+        try:
+            self._verificacao_timer = self._root.after(intervalo_ms, recheck)
+        except Exception:
+            pass
 
     def _verificar_atualizacao_thread(self):
         """Verifica atualização em thread separada (background)"""
@@ -94,18 +146,43 @@ class ESFApp:
             )
     
     def _iniciar_download_atualizacao(self):
-        """Inicia download e instalação da atualização"""
-        def download_thread():
-            self.updater.download_and_install(
-                progress_callback=self._atualizar_progresso_download
-            )
-        
-        thread = threading.Thread(target=download_thread, daemon=True)
+        """Usuário confirmou: baixa, agenda a instalação e encerra o app para aplicar."""
+        if not self.tela_principal:
+            return
+
+        dialogo = self.tela_principal.mostrar_dialogo_atualizacao()
+
+        def progresso_seguro(mensagem, percentual):
+            self._root.after(0, lambda: dialogo["progresso"](mensagem, percentual))
+
+        def fluxo():
+            try:
+                info = self.updater.check_for_update()
+                if not info:
+                    self._root.after(0, lambda: dialogo["erro"](
+                        "Não foi possível verificar a atualização.\n"
+                        "Verifique sua conexão com a internet e tente novamente."))
+                    return
+
+                caminho = self.updater.baixar_atualizacao(
+                    info, progress_callback=progresso_seguro
+                )
+                progresso_seguro("Preparando instalação...", 100)
+
+                ok = self.updater.agendar_instalacao(caminho, reiniciar=True)
+                if not ok:
+                    self._root.after(0, lambda: dialogo["erro"](
+                        "Falha ao preparar a instalação da atualização."))
+                    return
+
+                # Fecha o app; o instalador silencioso assume e reabre o app
+                self._root.after(1000, self._sair)
+            except Exception as e:
+                mensagem = f"Erro durante a atualização:\n{e}"
+                self._root.after(0, lambda: dialogo["erro"](mensagem))
+
+        thread = threading.Thread(target=fluxo, daemon=True)
         thread.start()
-    
-    def _atualizar_progresso_download(self, mensagem: str, percentual: int):
-        """Callback de progresso do download"""
-        print(f"[Atualização] {mensagem} ({percentual}%)")
 
     def _criar_janela_root(self):
         """Cria janela root CTk oculta (obrigatória para que CTkToplevel funcione)"""

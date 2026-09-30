@@ -263,7 +263,7 @@ class TelaReceitas:
         """Abre formulário para novo pedido de receita"""
         janela = ctk.CTkToplevel(self.janela)
         janela.title("📝 Novo Pedido de Receita")
-        janela.geometry("420x320")
+        janela.geometry("420x360")
         janela.resizable(False, False)
         janela.transient(self.janela)
         janela.grab_set()
@@ -361,7 +361,21 @@ class TelaReceitas:
             text_color=COR_TEXTO,
             width=100
         ).pack(side="right")
+        
+        # Redimensiona a janela para o conteúdo real — evita botões cortados
+        # quando o Windows usa escala de 125% ou 150%
+        self._ajustar_altura_janela(janela, frame, largura=420, minimo=360)
     
+    @staticmethod
+    def _ajustar_altura_janela(janela, frame_conteudo, largura: int = 420, minimo: int = 320):
+        """Ajusta a altura da janela ao conteúdo real do frame (escala de tela segura)."""
+        try:
+            janela.update_idletasks()
+            altura_necessaria = frame_conteudo.winfo_reqheight() + 50  # padding + margem
+            janela.geometry(f"{largura}x{max(minimo, altura_necessaria)}")
+        except Exception:
+            pass
+
     def _abrir_retirada(self, receita):
         """Abre formulário para registrar retirada"""
         dados_receita = receita.to_dict() if hasattr(receita, 'to_dict') else dict(receita)
@@ -425,7 +439,7 @@ class ModalRetiradaReceita:
         janela = ctk.CTkToplevel(self.parent if self.parent else None)
         self.janela = janela
         janela.title("📤 Registrar Retirada")
-        janela.geometry("420x320")
+        janela.geometry("420x360")
         janela.resizable(False, False)
 
         if self.parent:
@@ -564,4 +578,22 @@ class ModalRetiradaReceita:
             text_color=COR_TEXTO,
             width=140
         ).pack(side="right")
+
+        # Redimensiona a janela para o conteúdo real — evita botões cortados
+        # quando o Windows usa escala de 125% ou 150% — e recentraliza
+        TelaReceitas._ajustar_altura_janela(janela, frame, largura=420, minimo=360)
+        janela.update_idletasks()
+        if self.parent and self.parent.winfo_exists():
+            try:
+                px = self.parent.winfo_rootx()
+                py = self.parent.winfo_rooty()
+                pw = self.parent.winfo_width()
+                ph = self.parent.winfo_height()
+                w = janela.winfo_width()
+                h = janela.winfo_height()
+                x = px + max(0, (pw - w) // 2)
+                y = py + max(0, (ph - h) // 2)
+                janela.geometry(f"+{x}+{y}")
+            except Exception:
+                pass
 

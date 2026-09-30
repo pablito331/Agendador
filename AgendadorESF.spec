@@ -1,4 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
+# Build em modo PASTA (onedir): o exe abre instantaneamente porque não precisa
+# se extrair inteiro para %TEMP% a cada inicialização (o onefile era a principal
+# causa da lentidão ao abrir). A pasta dist/AgendadorESF é embutida no instalador.
 from PyInstaller.utils.hooks import collect_all
 
 datas = []
@@ -26,21 +29,29 @@ pyz = PYZ(a.pure)
 exe = EXE(
     pyz,
     a.scripts,
-    a.binaries,
-    a.datas,
     [],
+    exclude_binaries=True,
     name='AgendadorESF',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=True,
-    upx_exclude=[],
-    runtime_tmpdir=None,
+    # UPX desativado: causa falso positivo em antivírus e atrasa a abertura
+    # (o Windows re-verifica o exe compactado a cada execução).
+    upx=False,
     console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    onefile=True,
+)
+
+coll = COLLECT(
+    exe,
+    a.binaries,
+    a.datas,
+    strip=False,
+    upx=False,
+    upx_exclude=[],
+    name='AgendadorESF',
 )

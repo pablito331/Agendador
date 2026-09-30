@@ -102,8 +102,8 @@ class TelaPrincipal:
         tray_label.pack(pady=(0, 5))
         
         # === BARRA DE BUSCA ===
-        busca_frame = ctk.CTkFrame(self.frame, fg_color="transparent")
-        busca_frame.pack(fill="x", pady=(0, 15))
+        self.busca_frame = ctk.CTkFrame(self.frame, fg_color="transparent")
+        self.busca_frame.pack(fill="x", pady=(0, 15))
         
         self.busca_entry = ctk.CTkEntry(
             busca_frame,
@@ -255,7 +255,16 @@ class TelaPrincipal:
             info_atualizacao: Dict com 'version', 'url', 'body', 'asset_url'
             download_callback: Função a chamar quando clicar em "Baixar"
         """
-        # Criar frame para notificação
+        # Evitar duplicar banner se já houver um aberto
+        if getattr(self, 'notif_frame', None) is not None:
+            try:
+                self.notif_frame.destroy()
+            except Exception:
+                pass
+
+        # Criar frame para notificação, no TOPO da janela (acima da barra de busca).
+        # Empacotar antes do busca_frame garante que o banner nunca fique espremido
+        # no rodapé pelos botões que expandem (antes ele sumia na tela 400x600).
         notif_frame = ctk.CTkFrame(
             self.frame,
             fg_color="#1a3a52",
@@ -263,7 +272,8 @@ class TelaPrincipal:
             border_width=2,
             corner_radius=8
         )
-        notif_frame.pack(fill="x", pady=(0, 15))
+        notif_frame.pack(fill="x", pady=(0, 10), before=self.busca_frame)
+        self.notif_frame = notif_frame
         
         # Conteúdo
         conteudo = ctk.CTkFrame(notif_frame, fg_color="transparent")
@@ -321,16 +331,107 @@ class TelaPrincipal:
         ctk.CTkButton(
             botoes_frame,
             text="✕",
-            command=lambda: notif_frame.destroy(),
+            command=lambda: self._fechar_notificacao(notif_frame),
             fg_color="#333333",
             hover_color="#444444",
             text_color="#999999",
             width=32,
             height=32
         ).pack(side="left")
+    
+    def _fechar_notificacao(self, frame):
+        """Fecha o banner de atualização"""
+        try:
+            frame.destroy()
+        except Exception:
+            pass
+        if getattr(self, 'notif_frame', None) is frame:
+            self.notif_frame = None
+    
+    def mostrar_dialogo_atualizacao(self):
+        """
+        Mostra janela de progresso do download da atualização.
         
-        # Mover para o topo (repackar)
-        notif_frame.tkraise()
+        Retorna dict com:
+          'progresso': função(mensagem, percentual) para atualizar a barra
+          'erro': função(mensagem) para exibir erro e fechar o diálogo
+        """
+        parent = self.janela
+        dialogo_janela = ctk.CTkToplevel(parent)
+        dialogo_janela.title("Atualizando o AgendadorESF")
+        dialogo_janela.geometry("380x190")
+        dialogo_janela.resizable(False, False)
+        dialogo_janela.transient(parent)
+        dialogo_janela.attributes('-topmost', True)
+        try:
+            dialogo_janela.grab_set()
+        except Exception:
+            pass
+        dialogo_janela.protocol("WM_DELETE_WINDOW", lambda: None)  # não fecha durante download
+        
+        frame = ctk.CTkFrame(dialogo_janela, fg_color=COR_FUNDO)
+        frame.pack(fill="both", expand=True, padx=20, pady=20)
+        
+        ctk.CTkLabel(
+            frame,
+            text="📥 Atualização automática",
+            font=ctk.CTkFont(size=15, weight="bold"),
+            text_color=COR_TEXTO
+        ).pack(pady=(0, 4))
+        
+        ctk.CTkLabel(
+            frame,
+            text="Baixando a nova versão. Ao terminar, o aplicativo\n"
+                 "será fechado e reaberto já atualizado.",
+            font=ctk.CTkFont(size=11),
+            text_color="#cccccc",
+            justify="left"
+        ).pack(pady=(0, 12))
+        
+        progressbar = ctk.CTkProgressBar(frame, width=300)
+        progressbar.pack(pady=(0, 6))
+        progressbar.set(0)
+        
+        status_label = ctk.CTkLabel(
+            frame,
+            text="Preparando...",
+            font=ctk.CTkFont(size=11),
+            text_color="#aaaaaa"
+        )
+        status_label.pack()
+        
+        def atualizar_progresso(mensagem: str, percentual: int):
+            try:
+                if not dialogo_janela.winfo_exists():
+                    return
+                progressbar.set(max(0.0, min(1.0, percentual / 100.0)))
+                status_label.configure(text=mensagem)
+            except Exception:
+                pass
+        
+        def mostrar_erro(mensagem: str):
+            try:
+                if dialogo_janela.winfo_exists():
+                    dialogo_janela.grab_release()
+                    dialogo_janela.destroy()
+            except Exception:
+                pass
+            from tkinter import messagebox
+            messagebox.showerror("Atualização", mensagem, parent=self.janela)
+        
+        dialogo_janela.update_idletasks()
+        try:
+            px = parent.winfo_rootx()
+            py = parent.winfo_rooty()
+            pw = parent.winfo_width()
+            ph = parent.winfo_height()
+            x = px + max(0, (pw - 380) // 2)
+            y = py + max(0, (ph - 190) // 2)
+            dialogo_janela.geometry(f"+{x}+{y}")
+        except Exception:
+            pass
+        
+        return {"progresso": atualizar_progresso, "erro": mostrar_erro}
     
     def _download_e_instalar(self, callback, frame_notif):
         """Inicia download e instalação"""

@@ -17,7 +17,7 @@ RequestExecutionLevel admin
 SetCompressor /SOLID lzma
 
 ; Versão (atualizada automaticamente pelo build)
-!define VERSION "1.0.2"
+!define VERSION "1.0.3"
 !define PUBLISHER "ESF Saúde"
 !define EXE_NAME "AgendadorESF.exe"
 
@@ -53,8 +53,8 @@ Section "AgendadorESF" SecApp
   DetailPrint "Preparando diretório de instalação..."
   SetOutPath "$INSTDIR"
 
-  ; Copia o executável principal embutido
-  File "dist\AgendadorESF.exe"
+  ; Copia o aplicativo completo (modo pasta = abertura muito mais rápida)
+  File /r "dist\AgendadorESF\*.*"
 
   ; Grava informações no Registro do Windows
   WriteRegStr HKCU "Software\AgendadorESF" "Install_Dir" "$INSTDIR"
@@ -82,9 +82,23 @@ SectionEnd
 ; ===============================================
 
 Section "Uninstall"
-  ; Remove arquivos instalados
+  ; Pergunta antes de apagar a planilha que pode estar na pasta de instalação
+  MessageBox MB_YESNO|MB_ICONQUESTION "Deseja também apagar a planilha agenda_esf.xlsx (se existir na pasta de instalação)?$\n$\nEscolha 'Não' para manter seus dados." IDYES remover_tudo IDNO manter_planilha
+
+manter_planilha:
   Delete "$INSTDIR\${EXE_NAME}"
   Delete "$INSTDIR\Uninstall.exe"
+  Delete "$INSTDIR\agenda_esf.xlsx"
+  RMDir "$INSTDIR"
+  Goto fim
+
+remover_tudo:
+  ; Remove tudo, exceto a planilha (sempre preservada por segurança)
+  RMDir /r "$INSTDIR"
+  Delete "$INSTDIR\agenda_esf.xlsx"
+  RMDir "$INSTDIR"
+
+fim:
 
   ; Remove atalhos
   Delete "$SMPROGRAMS\AgendadorESF\AgendadorESF.lnk"

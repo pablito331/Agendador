@@ -27,9 +27,9 @@ O **AgendadorESF** possui um sistema completo de atualização automática que:
   - Experiência de instalação profissional
   - Sempre baixa a versão mais recente
 
-### 2. Executável Portátil
-- **Arquivo**: `AgendadorESF.exe`
-- **Tamanho**: ~60MB
+### 2. Versão Portátil
+- **Arquivo**: `AgendadorESF_portatile_vX.X.X.zip` (pasta compactada)
+- **Tamanho**: ~60-90MB descompactado
 - **Como funciona**:
   - Executável standalone completo
   - Inclui Python e todas as dependências
@@ -72,8 +72,9 @@ O **AgendadorESF** possui um sistema completo de atualização automática que:
    ```
 
 3. **O GitHub Actions vai automaticamente**:
-   - ✅ Compilar o executável com PyInstaller
-   - ✅ Compilar o instalador NSIS
+   - ✅ Compilar o app em modo pasta (onedir, abertura rápida) com PyInstaller
+   - ✅ Compactar a versão portátil (.zip)
+   - ✅ Compilar o instalador NSIS (que embute a pasta do app)
    - ✅ Criar uma release no GitHub
    - ✅ Fazer upload de ambos os arquivos
    - ✅ Usuarios verão notificação de atualização

@@ -31,6 +31,10 @@ COLUNAS_CONFIG = [
     'tipo', 'chave', 'valor'
 ]
 
+# Limite de linhas na aba Log: sem poda, o Log cresce para sempre e cada
+# operação (agendar, pedir receita...) fica cada vez mais lenta.
+MAX_LINHAS_LOG = 2000
+
 # Tipos de ação para o Log
 ACAO_AGENDAR = 'AGENDAR'
 ACAO_CANCELAR = 'CANCELAR'
@@ -786,6 +790,10 @@ class ExcelManager:
                 
                 novo_df = pd.DataFrame([novo_registro])
                 df = pd.concat([df, novo_df], ignore_index=True)
+                
+                # Mantém apenas os registros mais recentes para a planilha não crescer sem limite
+                if len(df) > MAX_LINHAS_LOG:
+                    df = df.iloc[-MAX_LINHAS_LOG:]
                 
                 self._salvar_sheet(df, sheet_name='Log')
             except Exception as e:

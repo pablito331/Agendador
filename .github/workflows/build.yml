@@ -53,12 +53,15 @@ jobs:
       run: |
         pyinstaller AgendadorESF.spec --noconfirm
     
-    - name: Prepare portable executables
+    - name: Prepare portable build (zip da pasta)
       shell: pwsh
       run: |
         $ver = "${{ steps.version.outputs.version }}"
-        if (Test-Path "./dist/AgendadorESF.exe") {
-          Copy-Item "./dist/AgendadorESF.exe" -Destination "./dist/AgendadorESF_v$ver.exe"
+        if (Test-Path "./dist/AgendadorESF/AgendadorESF.exe") {
+          Compress-Archive -Path "./dist/AgendadorESF/*" -DestinationPath "./dist/AgendadorESF_portable_v$ver.zip" -Force
+        } else {
+          Write-Error "Build onedir nao encontrado em dist/AgendadorESF"
+          exit 1
         }
     
     - name: Build NSIS Installer
@@ -85,9 +88,9 @@ jobs:
           - Cria atalhos na Área de Trabalho e Menu Iniciar
           - Instalação e desinstalação automática
           
-          **Opção 2 - Executável Portátil**
-          - Arquivo: `AgendadorESF.exe` / `AgendadorESF_v${{ steps.version.outputs.version }}.exe`
-          - Executável standalone que roda sem precisar instalar
+          **Opção 2 - Versão Portátil**
+          - Arquivo: `AgendadorESF_portable_v${{ steps.version.outputs.version }}.zip`
+          - Descompacte e execute `AgendadorESF.exe` (não precisa instalar)
           
           ### 🚀 Instruções
           1. Baixe o instalador `AgendadorESF-Setup.exe` ou o executável portátil.
@@ -100,6 +103,5 @@ jobs:
         draft: false
         prerelease: false
         files: |
-          ./dist/AgendadorESF.exe
-          ./dist/AgendadorESF_v${{ steps.version.outputs.version }}.exe
+          ./dist/AgendadorESF_portable_v${{ steps.version.outputs.version }}.zip
           ./AgendadorESF-Setup.exe
