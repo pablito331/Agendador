@@ -106,7 +106,7 @@ class TelaPrincipal:
         self.busca_frame.pack(fill="x", pady=(0, 15))
         
         self.busca_entry = ctk.CTkEntry(
-            busca_frame,
+            self.busca_frame,
             placeholder_text="🔍 Buscar paciente, médico, medicamento...",
             height=35,
             font=ctk.CTkFont(size=12),
